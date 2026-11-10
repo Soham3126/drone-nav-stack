@@ -1,0 +1,17 @@
+world: w0_box_room
+pattern: square_3m
+frame: world
+height_m: 1.1
+speed_m_s: 0.5
+accept_m: 0.25
+start: [3.0, 3.0, 0.0]
+path_length_m: 13.98
+min_clearance_to_face_m: 0.636
+waypoints:
+- [3.0, 3.0]
+- [3.7, 2.3]
+- [3.7, 5.3]
+- [0.7, 5.3]
+- [0.7, 2.3]
+- [3.7, 2.3]
+- [3.0, 3.0]

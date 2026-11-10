@@ -713,10 +713,10 @@
   {
    "x": 4.0,
    "y": 6.0,
-   "sx": 0.4,
-   "sy": 0.4,
+   "sx": 0.25,
+   "sy": 0.25,
    "h": 2.0,
-   "note": "tall box"
+   "note": "tall box (0.25 m column: leaves 0.375 m to the room flight lines)"
   }
  ],
  "low_boxes": [
@@ -769,8 +769,8 @@
  ],
  "doors": [],
  "cells": {
-  "occupied": 10028,
-  "reachable_free": 81176,
-  "reachable_drone": 80234
+  "occupied": 10000,
+  "reachable_free": 81204,
+  "reachable_drone": 80262
  }
 }

@@ -9,7 +9,7 @@ Listens for --duration seconds (default 30) and checks:
   /scan  rate 9-11 Hz, frame 'laser', 500 ranges, range 0.05-12.0 m, increment ~0.72 deg
   /imu   rate 180-220 Hz, frame 'imu_link', |a| = 9.81 +- 0.3 m/s^2 pointing up (+z)
   TF     base_link -> laser and base_link -> imu_link at z = 0.12 m
-  sync   newest /imu and newest /scan stamps < 50 ms apart, both increasing
+  sync   at each scan's arrival, newest /imu stamp - scan stamp: median < 50 ms; stamps increasing
   room   the scan matches the ground-truth world (median range error < 5 cm),
          computed by ray-casting meta.json's walls and boxes from the start pose
 Rates are measured from message timestamps (sensor rate) and also reported per wall-clock second.
@@ -56,6 +56,8 @@ class Collector(Node):
         super().__init__('a0_2_sensor_check')
         self.scans, self.imus = [], []
         self.first_scan = None
+        self.newest_imu = None
+        self.scan_imu_gaps = []   # at each scan arrival: newest IMU stamp - scan stamp
         self.create_subscription(LaserScan, '/scan', self.on_scan, qos_profile_sensor_data)
         self.create_subscription(Imu, '/imu', self.on_imu, qos_profile_sensor_data)
         self.tf = Buffer()
@@ -63,12 +65,15 @@ class Collector(Node):
 
     def on_scan(self, m):
         self.scans.append((time.monotonic(), stamp(m), m.header.frame_id))
+        if self.newest_imu is not None:
+            self.scan_imu_gaps.append(self.newest_imu - stamp(m))
         if self.first_scan is None:
             self.first_scan = m
         self.last_scan = m
 
     def on_imu(self, m):
         a = m.linear_acceleration
+        self.newest_imu = stamp(m)
         self.imus.append((time.monotonic(), stamp(m), m.header.frame_id, a.x, a.y, a.z))
 
 
@@ -139,11 +144,21 @@ def main():
     res['tf'] = tfr
 
     # ---- timestamp sync
+    # Measured at the moment each scan ARRIVES: how far the newest IMU stamp is ahead of
+    # that scan's stamp. Comparing the two newest messages at the end of the run (first
+    # version of this test) is wrong: with 10 Hz scans the last scan can be up to 100 ms
+    # old purely by chance. A median gap near 0 = same clock, no lag; a steady gap near
+    # 100 ms = the scan is delivered one LiDAR period after its timestamp.
     sync = {'pass': False}
-    if sc and im:
-        dt = abs(sc[-1][1] - im[-1][1])
+    g = np.array(node.scan_imu_gaps)
+    if len(g) > 5:
         inc = all(b[1] > a[1] for a, b in zip(sc, sc[1:])) and all(b[1] >= a[1] for a, b in zip(im, im[1:]))
-        sync = {'newest_stamp_gap_ms': round(dt * 1000, 1), 'increasing': inc, 'pass': dt < 0.05 and inc}
+        sync = {'scans_measured': int(len(g)),
+                'gap_ms_median': round(float(np.median(g)) * 1000, 1),
+                'gap_ms_min': round(float(g.min()) * 1000, 1),
+                'gap_ms_max': round(float(g.max()) * 1000, 1),
+                'increasing': inc,
+                'pass': bool(abs(np.median(g)) < 0.05 and inc)}
     res['sync'] = sync
 
     # ---- scan vs. ground truth room

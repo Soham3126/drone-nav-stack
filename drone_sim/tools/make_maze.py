@@ -353,7 +353,7 @@ def catalogue():
         lat, rooms = from_maze(15, 15, 1.0, seed=8, n_rooms=6, n_loops=1)
         r0, r1 = rooms[0], rooms[1]
         boxes = [dict(x=(r0['x0'] + r0['x1']) / 2, y=(r0['y0'] + r0['y1']) / 2,
-                      sx=0.4, sy=0.4, h=2.0, note='tall box'),
+                      sx=0.25, sy=0.25, h=2.0, note='tall box (0.25 m column: leaves 0.375 m to the room flight lines)'),
                  dict(x=(r1['x0'] + r1['x1']) / 2, y=(r1['y0'] + r1['y1']) / 2,
                       sx=0.4, sy=0.4, h=0.3, note='low box, below the LiDAR plane')]
         return dict(lat=lat, rooms=rooms, boxes=boxes, doors=[], start=(0.5, 0.5, 0.0),

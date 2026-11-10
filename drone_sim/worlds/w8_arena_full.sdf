@@ -1054,8 +1054,8 @@
       <static>true</static>
       <pose>4.0000 6.0000 1.0000 0 0 0</pose>
       <link name="link">
-        <collision name="c"><geometry><box><size>0.4000 0.4000 2.0000</size></box></geometry></collision>
-        <visual name="v"><geometry><box><size>0.4000 0.4000 2.0000</size></box></geometry>
+        <collision name="c"><geometry><box><size>0.2500 0.2500 2.0000</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.2500 0.2500 2.0000</size></box></geometry>
           <material><ambient>0.7 0.4 0.2 1</ambient><diffuse>0.7 0.4 0.2 1</diffuse></material></visual>
       </link>
     </model>

@@ -1,0 +1,13 @@
+world: w1_corridor_plain
+pattern: corridor_out_back
+frame: world
+height_m: 1.1
+speed_m_s: 0.5
+accept_m: 0.25
+start: [0.5, 0.5, 0.0]
+path_length_m: 20.0
+min_clearance_to_face_m: 0.475
+waypoints:
+- [0.5, 0.5]
+- [10.5, 0.5]
+- [0.5, 0.5]

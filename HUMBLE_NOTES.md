@@ -24,6 +24,8 @@ follows the book.
 | `drone_nav/config/planner.yaml` | planner plugin `nav2_smac_planner/SmacPlanner2D` | Humble (Nav2 1.1) plugin name form |
 | `drone_sim/tests/A0_1.py` | start clearance tested as ≥ 0.475 m to the wall **face** | the book's "≥ 0.5 m from walls" is impossible in a 1.0 m corridor (centre line is 0.475 m from each face, 0.5 m from each wall's centre line) |
 | `drone_sim/tools/make_maze.py` | writes two reachability masks: `reachable_free` (all free cells joined to the start) and `reachable_drone` (what the 0.27 m drone circle can sweep) | in W7 the room behind the 0.45 m gap is free space the drone can never enter |
+| `drone_sim/tools/make_maze.py` | W8 tall box is a 0.25 m column (not specified in the book) | a 0.4 m box in the middle of a 2 x 2 m room leaves 0.30 m to the room's flight lines, below the 0.35 m scripted-flight margin, and cut the W8 tour to 9 of 225 cells |
+| `drone_sim/tools/make_patterns.py` | scripted-flight patterns keep >= 0.35 m from every wall face (0.27 m radius + GPS margin); flown as cell-to-cell straight lines | book says "waypoint YAML per world, generated from meta.json" without a rule |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use

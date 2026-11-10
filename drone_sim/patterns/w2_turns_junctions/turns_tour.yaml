@@ -1,0 +1,26 @@
+world: w2_turns_junctions
+pattern: turns_tour
+frame: world
+height_m: 1.1
+speed_m_s: 0.5
+accept_m: 0.25
+start: [0.5, 3.5, 0.0]
+path_length_m: 58.0
+min_clearance_to_face_m: 0.475
+cells_visited: 30
+cells_not_reachable_with_clearance: 69
+waypoints:
+- [0.5, 3.5]
+- [10.5, 3.5]
+- [10.5, 6.5]
+- [10.5, 3.5]
+- [5.5, 3.5]
+- [5.5, 8.5]
+- [8.5, 8.5]
+- [2.5, 8.5]
+- [2.5, 6.5]
+- [2.5, 8.5]
+- [5.5, 8.5]
+- [5.5, 0.5]
+- [5.5, 3.5]
+- [0.5, 3.5]
