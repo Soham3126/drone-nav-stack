@@ -214,20 +214,25 @@ class Flyer:
         raise FlightError('still armed after LAND timeout')
 
 
-def fly_pattern(pattern, url='tcp:127.0.0.1:5763', speed=None, log=print, on_sample=None):
-    """Fly one pattern dict (as loaded from YAML). Returns a result dict."""
+def fly_pattern(pattern, url='tcp:127.0.0.1:5763', speed=None, log=print, on_sample=None, yaw_mode='fixed',
+                extra_params=None):
+    """Fly one pattern dict (as loaded from YAML). Returns a result dict.
+    yaw_mode 'fixed': hold the start heading; 'travel': point the nose along each leg
+    (ArduPilot turns while it starts the leg). extra_params: {NAME: value} set before arming."""
     speed = speed or pattern.get('speed_m_s', 0.5)
     h = pattern.get('height_m', 1.1)
     accept = pattern.get('accept_m', 0.25)
     sx, sy, syaw = pattern['start']
     yaw_ned = math.pi / 2 - syaw
     f = Flyer(url, log=log, on_sample=on_sample)
-    result = {'pattern': pattern['pattern'], 'world': pattern['world'], 'speed_m_s': speed,
+    result = {'pattern': pattern['pattern'], 'world': pattern['world'], 'speed_m_s': speed, 'yaw_mode': yaw_mode,
               'waypoints_total': len(pattern['waypoints']), 'waypoints_reached': 0, 'ok': False}
     t0 = time.time()
     try:
         f.connect()
         f.set_param('WP_SPD', speed)
+        for name, val in (extra_params or {}).items():
+            f.set_param(name, val)
         f.wait_position()
         f.pump(1.0)
         _, n0, e0, d0, *_ = f.lpos
@@ -241,6 +246,8 @@ def fly_pattern(pattern, url='tcp:127.0.0.1:5763', speed=None, log=print, on_sam
         for k, (wx, wy) in enumerate(pattern['waypoints']):
             n, e, d = n0 + (wy - sy), e0 + (wx - sx), d0 - h
             leg = math.dist(prev, (wx, wy))
+            if yaw_mode == 'travel' and leg > 0.05:
+                yaw_ned = math.atan2(wx - prev[0], wy - prev[1])     # NED yaw: from north towards east
             t = f.goto(n, e, d, yaw_ned, accept, timeout=leg / speed * 3 + 20)
             reached.append(t)
             result['waypoints_reached'] = k + 1
@@ -269,6 +276,7 @@ def main():
     ap.add_argument('--speed', type=float, help='override speed (m/s), sets WP_SPD')
     ap.add_argument('--url', default='tcp:127.0.0.1:5763')
     ap.add_argument('--out', help='folder for flight_result.json')
+    ap.add_argument('--yaw', choices=['fixed', 'travel'], default='fixed', help='heading during the flight')
     args = ap.parse_args()
     path = args.pattern or (default_pattern_path(args.world) if args.world else None)
     if not path:
@@ -276,7 +284,7 @@ def main():
     pattern = yaml.safe_load(open(path))
     print(f"pattern {pattern['pattern']} in {pattern['world']}: {len(pattern['waypoints'])} waypoints, "
           f"{pattern['path_length_m']} m")
-    res = fly_pattern(pattern, url=args.url, speed=args.speed)
+    res = fly_pattern(pattern, url=args.url, speed=args.speed, yaw_mode=args.yaw)
     if args.out:
         os.makedirs(args.out, exist_ok=True)
         json.dump(res, open(os.path.join(args.out, 'flight_result.json'), 'w'), indent=1)

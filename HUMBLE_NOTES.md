@@ -26,6 +26,9 @@ follows the book.
 | `drone_sim/tools/make_maze.py` | writes two reachability masks: `reachable_free` (all free cells joined to the start) and `reachable_drone` (what the 0.27 m drone circle can sweep) | in W7 the room behind the 0.45 m gap is free space the drone can never enter |
 | `drone_sim/tools/make_maze.py` | W8 tall box is a 0.25 m column (not specified in the book) | a 0.4 m box in the middle of a 2 x 2 m room leaves 0.30 m to the room's flight lines, below the 0.35 m scripted-flight margin, and cut the W8 tour to 9 of 225 cells |
 | `drone_sim/tools/make_patterns.py` | scripted-flight patterns keep >= 0.35 m from every wall face (0.27 m radius + GPS margin); flown as cell-to-cell straight lines | book says "waypoint YAML per world, generated from meta.json" without a rule |
+| `drone_sim/tools/eval_run.py` | "phantom cluster" = 8-connected phantom cells whose bounding-box diagonal is > 0.20 m; A1.2's "no phantom clusters" judged the same way | the book defines length limits only in A1.5/A1.6 |
+| `drone_sim/tests/A1_4.py`, `A1_5.py` | drone points its nose along each leg (`yaw_mode: travel`); A1.2/A1.3 hold the start heading | A1.4 asks for heading error after turns, which needs the drone to actually turn |
+| `drone_sim/tools/eval_run.py` | heading error "after a turn" = 1 s after the ground-truth yaw rate drops below 20 deg/s | book gives no exact moment |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use
