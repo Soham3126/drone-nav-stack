@@ -76,7 +76,7 @@ def extract(run_dir, keep_maps=False):
     bag = os.path.join(run_dir, 'bag')
     if not os.path.isfile(os.path.join(bag, 'metadata.yaml')):
         print('bag has no metadata.yaml (recorder stopped hard): reindexing ...')
-        subprocess.run(['ros2', 'bag', 'reindex', bag, 'mcap'], check=False)
+        subprocess.run(['ros2', 'bag', 'reindex', '-s', 'mcap', bag], check=False)
     reader = rosbag2_py.SequentialReader()
     reader.open(rosbag2_py.StorageOptions(uri=bag, storage_id='mcap'),
                 rosbag2_py.ConverterOptions('cdr', 'cdr'))
