@@ -283,13 +283,31 @@ def compute(data, world, run_dir=None):
             m['heading_after_turn_max_deg'] = max(turns)
             m['heading_after_turn_deg'] = turns
     else:
-        # static run (A1.1): drift over seconds 15-60 after the first estimate
+        # static run (A1.1). Cartographer publishes ~200 poses/s: IMU-extrapolated between 10 Hz scan
+        # matches, so single samples shake by a few mm. DRIFT = how far the 1 s average moves over
+        # seconds 15-60 (what the book's "pose drift" means); JITTER = raw samples around their own
+        # 1 s average (reported, not judged).
         w = (E[:, 0] >= E[0, 0] + 15) & (E[:, 0] <= E[0, 0] + 60)
         if w.sum() > 5:
-            x, y, yaw = ex[w], ey[w], eyaw[w]
+            t, x, y, yaw = E[w, 0], ex[w], ey[w], eyaw[w]
+            sec = np.floor(t - t[0]).astype(int)
+            n = np.bincount(sec)
+            ok = n >= 0.5 * np.median(n[n > 0])     # skip a part-filled last second
+            mx = np.bincount(sec, x)[ok] / n[ok]
+            my = np.bincount(sec, y)[ok] / n[ok]
+            myaw = np.bincount(sec, yaw)[ok] / n[ok]
             m['static_window_s'] = [15, 60]
-            m['static_drift_m'] = round(float(np.hypot(x - x[0], y - y[0]).max()), 5)
-            m['static_drift_deg'] = round(float(np.abs(np.degrees(yaw - yaw[0])).max()), 4)
+            m['static_drift_m'] = round(float(np.hypot(mx - mx[0], my - my[0]).max()), 5)
+            m['static_drift_deg'] = round(float(np.abs(np.degrees(myaw - myaw[0])).max()), 4)
+            full = np.zeros(len(n))
+            full[ok] = 1
+            jx = x - (np.bincount(sec, x) / np.maximum(n, 1))[sec]
+            jy = y - (np.bincount(sec, y) / np.maximum(n, 1))[sec]
+            jit = np.hypot(jx, jy)
+            m['static_jitter_std_m'] = round(float(np.sqrt((jit ** 2).mean())), 5)
+            m['static_jitter_max_m'] = round(float(jit.max()), 5)
+            m['static_raw_max_from_start_m'] = round(float(np.hypot(x - x[0], y - y[0]).max()), 5)
+            m['pose_rate_hz'] = round(float(w.sum() / (t[-1] - t[0])), 1)
 
     # --- map metrics
     if 'map_data' in data:
@@ -450,7 +468,8 @@ def evaluate(run_dir, world=None):
     if series:
         plots(series, m, run_dir)
     keys = ['ate_rmse_m', 'ate_max_m', 'end_error_m', 'lengthwise_max_m', 'sideways_max_m', 'heading_err_max_deg',
-            'heading_after_turn_max_deg', 'turns_detected', 'static_drift_m', 'static_drift_deg', 'precision',
+            'heading_after_turn_max_deg', 'turns_detected', 'static_drift_m', 'static_drift_deg', 'static_jitter_std_m',
+            'static_jitter_max_m', 'static_raw_max_from_start_m', 'pose_rate_hz', 'precision',
             'recall', 'phantom_cells', 'phantom_fraction', 'phantom_clusters', 'coverage',
             'clearance_margin_min_m', 'rtf_mean']
     print(f"=== {test_id} {world}  {m['run']}")

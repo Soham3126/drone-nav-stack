@@ -29,6 +29,8 @@ follows the book.
 | `drone_sim/tools/eval_run.py` | "phantom cluster" = 8-connected phantom cells whose bounding-box diagonal is > 0.20 m; A1.2's "no phantom clusters" judged the same way | the book defines length limits only in A1.5/A1.6 |
 | `drone_sim/tests/A1_4.py`, `A1_5.py` | drone points its nose along each leg (`yaw_mode: travel`); A1.2/A1.3 hold the start heading | A1.4 asks for heading error after turns, which needs the drone to actually turn |
 | `drone_sim/tools/eval_run.py` | heading error "after a turn" = 1 s after the ground-truth yaw rate drops below 20 deg/s | book gives no exact moment |
+| `drone_sim/tools/eval_run.py` | A1.1 drift = movement of the **1 s average** pose over 15-60 s; raw jitter reported separately (not judged) | first A1.1 run: no creep (slope 0.1-0.5 mm / 45 s, net 0.7 mm) but ~200 Hz IMU-extrapolated poses shake by 2.3 mm std, 11 mm peaks; the raw-sample maximum measured jitter, not drift. Jitter stays well inside the 2 cm settle check (2.10) |
+| `drone_sim/tools/eval_run.py` | known-free = map value 0..64 (Nav2 static layer, trinary) | Cartographer's free cells sit near 40-49; the 25 threshold gave coverage 0 |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use
