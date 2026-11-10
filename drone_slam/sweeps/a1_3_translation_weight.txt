@@ -1,0 +1,4 @@
+# A1.3 step 3: translation_weight in {0.2 (current), 1, 10}
+base |
+tw1  | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 1.
+tw10 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 10.

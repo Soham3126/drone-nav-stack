@@ -67,7 +67,7 @@ class Flyer:
         while time.time() < t_end:
             try:
                 self.m = mavutil.mavlink_connection(self.url, source_system=250, source_component=191)
-                hb = self.m.wait_heartbeat(timeout=10)
+                hb = self._autopilot_heartbeat(timeout=10)
                 if hb is not None:
                     break
             except OSError as e:          # SITL not listening yet
@@ -79,6 +79,21 @@ class Flyer:
         for msg_id, hz in MSG_INTERVALS.items():
             self.command(511, msg_id, 1e6 / hz, wait_ack=False)
         self.pump(1.0)
+
+    def _autopilot_heartbeat(self, timeout):
+        """First HEARTBEAT from a real autopilot. Ground stations (MAVProxy, other tools) also send
+        heartbeats through SITL's ports; locking onto one of them gives target_system 0/255."""
+        t_end = time.time() + timeout
+        while time.time() < t_end:
+            hb = self.m.recv_match(type='HEARTBEAT', blocking=True, timeout=1.0)
+            if hb is None:
+                continue
+            if hb.autopilot != mavutil.mavlink.MAV_AUTOPILOT_INVALID and hb.type != mavutil.mavlink.MAV_TYPE_GCS \
+                    and hb.get_srcSystem() not in (0, 255):
+                self.m.target_system = hb.get_srcSystem()
+                self.m.target_component = hb.get_srcComponent()
+                return hb
+        return None
 
     def pump(self, duration=0.0):
         """Read everything waiting (and keep reading for `duration` seconds)."""

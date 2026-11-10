@@ -49,6 +49,8 @@ CRITERIA = {
     'A1.5': [('ate_rmse_m', '<', 0.10), ('end_error_m', '<', 0.15), ('precision', '>=', 0.95),
              ('recall', '>=', 0.90), ('phantom_fraction', '<', 0.005), ('phantom_clusters', '==', 0)],
     'A1.6': [('phantom_clusters', '==', 0), ('ate_rmse_m', '<', 0.15)],
+    'A1.7a': [('near_ground_phantom_clusters', '==', 0)],      # style (a); (b) and (c) are recorded only
+    'A1.8': [('wall_offset_p99_m', '<', 0.10), ('corridor_free_width_min_m', '>=', 0.80)],
 }
 
 
@@ -57,7 +59,13 @@ def yaw_q(q):
     return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
 
-def extract(run_dir):
+def tilt_q(q):
+    roll = math.atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y))
+    pitch = math.asin(max(-1.0, min(1.0, 2 * (q.w * q.y - q.z * q.x))))
+    return math.degrees(math.hypot(roll, pitch))
+
+
+def extract(run_dir, keep_maps=False):
     cache = os.path.join(run_dir, 'eval_data.npz')
     if os.path.isfile(cache):
         return dict(np.load(cache, allow_pickle=True))
@@ -76,13 +84,14 @@ def extract(run_dir):
     want = [t for t in ('/ground_truth/odom', '/tf', '/map', '/clock') if t in types]
     reader.set_filter(rosbag2_py.StorageFilter(topics=want))
     cls = {t: get_message(types[t]) for t in want}
-    truth, est, clock, last_map, maps_seen = [], [], [], None, 0
+    truth, est, clock, last_map, maps_seen, tilt, snaps = [], [], [], None, 0, [], []
     while reader.has_next():
         topic, data, t_rx = reader.read_next()
         m = deserialize_message(data, cls[topic])
         if topic == '/ground_truth/odom':
             p, q = m.pose.pose.position, m.pose.pose.orientation
             truth.append((m.header.stamp.sec + m.header.stamp.nanosec * 1e-9, p.x, p.y, p.z, yaw_q(q)))
+            tilt.append(tilt_q(q))
         elif topic == '/tf':
             for tr in m.transforms:
                 if tr.header.frame_id == 'map' and tr.child_frame_id == 'base_link':
@@ -91,9 +100,18 @@ def extract(run_dir):
                                 yaw_q(tr.transform.rotation)))
         elif topic == '/map':
             last_map, maps_seen = m, maps_seen + 1
+            if keep_maps:
+                snaps.append(m)
         elif topic == '/clock':
             clock.append((t_rx * 1e-9, m.clock.sec + m.clock.nanosec * 1e-9))
-    out = {'truth': np.array(truth), 'est': np.array(est), 'clock': np.array(clock), 'maps_seen': maps_seen}
+    out = {'truth': np.array(truth), 'est': np.array(est), 'clock': np.array(clock), 'maps_seen': maps_seen,
+           'tilt_deg': np.array(tilt)}
+    if snaps:
+        # all maps share Cartographer's growing grid: store each with its own origin and size
+        out['snap_t'] = np.array([sm.header.stamp.sec + sm.header.stamp.nanosec * 1e-9 for sm in snaps])
+        out['snap_info'] = np.array([[sm.info.resolution, sm.info.origin.position.x, sm.info.origin.position.y,
+                                      yaw_q(sm.info.origin.orientation), sm.info.height, sm.info.width] for sm in snaps])
+        out['snap_data'] = np.concatenate([np.array(sm.data, dtype=np.int8) for sm in snaps])
     if last_map is not None:
         info = last_map.info
         o = info.origin
@@ -262,22 +280,29 @@ def compute(data, world, run_dir=None):
             m['sideways_max_m'] = round(float(sw.max()), 4)
             m['sideways_p95_m'] = round(float(np.percentile(sw, 95)), 4)
             series.update(lengthwise=lw, sideways=sw)
-        # heading error 1 s after each turn (truth yaw rate > 20 deg/s, then settles)
-        rate = np.degrees(np.gradient(yaw_t, T[:, 0]))
-        turning = (np.abs(rate) > 20) & air
-        turns, k = [], 0
-        idx = np.where(turning)[0]
-        while k < len(idx):
-            start = k
-            while k + 1 < len(idx) and T[idx[k + 1], 0] - T[idx[k], 0] < 0.5:
+        # heading error 1 s after each PATH turn: the direction of travel (ground truth, 10 Hz)
+        # changes by > 45 deg between two straight moving stretches. Works whether the nose
+        # turns with the path (YAW=travel) or keeps the take-off heading (book default).
+        vx, vy = np.gradient(tx, t10), np.gradient(ty, t10)
+        moving = np.hypot(vx, vy) > 0.15
+        course = np.arctan2(vy, vx)
+        turns, prev_dir, k = [], None, 0
+        while k < len(t10):
+            if not moving[k]:
                 k += 1
-            t_end = T[idx[k], 0]
-            t_chk = t_end + 1.0
-            if t_chk < T[air, 0][-1]:
-                ty1 = np.interp(t_chk, T[:, 0], yaw_t)
-                turns.append(round(abs(float(wrap_deg(est_at(t_chk)[2] - ty1))), 3))
-            k += 1
-            _ = start
+                continue
+            j = k
+            while j + 1 < len(t10) and moving[j + 1]:
+                j += 1
+            mid = k + (j - k) // 2
+            d = math.atan2(np.sin(course[k:j + 1]).mean(), np.cos(course[k:j + 1]).mean()) if j > k else course[mid]
+            if prev_dir is not None and abs(math.degrees(math.remainder(d - prev_dir, 2 * math.pi))) > 45:
+                t_chk = t10[k] + 1.0
+                if t_chk <= t10[-1]:
+                    ty1 = np.interp(t_chk, T[:, 0], yaw_t)
+                    turns.append(round(abs(float(wrap_deg(est_at(t_chk)[2] - ty1))), 3))
+            prev_dir = d
+            k = j + 1
         m['turns_detected'] = len(turns)
         if turns:
             m['heading_after_turn_max_deg'] = max(turns)
@@ -310,6 +335,7 @@ def compute(data, world, run_dir=None):
             m['pose_rate_hz'] = round(float(w.sum() / (t[-1] - t[0])), 1)
 
     # --- map metrics
+    d_map, gt_seen, d_occ = None, np.zeros_like(gt.occ), np.array([])
     if 'map_data' in data:
         md, mi = data['map_data'], data['map_info']
         wx, wy = map_cells_world(md, mi, align)
@@ -343,6 +369,8 @@ def compute(data, world, run_dir=None):
                 if np.linalg.norm(pos[k] - pos[keep[-1]]) >= 0.25:
                     keep.append(k)
             vis = gt.visible_walls(pos[keep, 0], pos[keep, 1])
+            # free cells the LiDAR swept (for A1.8: judge only corridors that were seen)
+            gt_seen = ndimage.binary_dilation(vis, iterations=int(round(0.6 / gt.res))) & ~gt.occ
             mapped = np.zeros_like(gt.occ)
             gi, gj, inside = gt.idx(wx[occ], wy[occ])
             mapped[gj[inside], gi[inside]] = True
@@ -359,6 +387,67 @@ def compute(data, world, run_dir=None):
         if target.any():
             m['coverage'] = round(float((fmask & target).sum() / target.sum()), 4)
         series.update(map_occ_world=(wx[occ], wy[occ]))
+
+    # --- tilt (A1.6)
+    if 'tilt_deg' in data and len(data['tilt_deg']) == len(T) and air.any():
+        m['tilt_max_deg'] = round(float(np.asarray(data['tilt_deg'])[np.argsort(data['truth'][:, 0])][air].max()), 2)
+
+    # --- loop consistency (A1.8): wall offset and narrowest corridor in the final map
+    if 'map_data' in data and m.get('map_occupied_cells'):
+        m['wall_offset_p99_m'] = round(float(np.percentile(np.minimum(d_occ, 1.0), 99)), 4)
+        if 'lattice_cells' in gt.meta and gt.meta.get('cell_size_m', 0) <= 1.0 + 1e-6 and d_map is not None:
+            c = gt.meta['cell_size_m']
+            nx, ny = gt.meta['lattice_cells']
+            cx = (np.arange(nx) + 0.5) * c
+            cy = (np.arange(ny) + 0.5) * c
+            CX, CY = np.meshgrid(cx, cy)
+            CX, CY = CX.ravel(), CY.ravel()
+            corridor = gt.wall_dist(CX, CY) < 0.6          # cell centres between walls (not mid-room)
+            ii, jj, inside = gt.idx(CX, CY)
+            seen = np.zeros(len(CX), bool)
+            seen[inside] = gt_seen[jj[inside], ii[inside]]
+            sel = corridor & seen & inside
+            if sel.any():
+                width = 2 * d_map[jj[sel], ii[sel]]
+                k = int(np.argmin(width))
+                m['corridor_free_width_min_m'] = round(float(width[k]), 3)
+                m['corridor_free_width_where'] = [round(float(CX[sel][k]), 2), round(float(CY[sel][k]), 2)]
+
+    # --- near-ground phantoms (A1.7): phantom cells added while below 0.6 m
+    if 'snap_t' in data and air.any():
+        h = T[:, 3] - z_ground
+        up = np.where(h > 0.05)[0]
+        t_lift = T[up[0], 0] if len(up) else None
+        hi = np.where(h > 0.6)[0]
+        t_06_up, t_06_down = (T[hi[0], 0], T[hi[-1], 0]) if len(hi) else (None, None)
+        t_end = T[-1, 0]
+        St, Si, Sd = data['snap_t'], data['snap_info'], data['snap_data']
+        offs = np.concatenate([[0], np.cumsum((Si[:, 4] * Si[:, 5]).astype(int))])
+
+        def snap(t, before=True):
+            k = np.searchsorted(St, t) - (1 if before else 0)
+            k = int(np.clip(k, 0, len(St) - 1))
+            res, mx, my, myaw, hh, ww = Si[k]
+            md = Sd[offs[k]:offs[k + 1]].reshape(int(hh), int(ww))
+            wx, wy = map_cells_world(md, (res, mx, my, myaw), align)
+            occ = md >= OCC_T
+            dd = gt.wall_dist(wx[occ], wy[occ])
+            ph = dd > PHANTOM_D
+            gi, gj, ins = gt.idx(wx[occ][ph], wy[occ][ph])
+            mask = np.zeros_like(gt.occ)
+            mask[gj[ins], gi[ins]] = True
+            return mask
+
+        if t_lift is not None and t_06_up is not None:
+            m0, m1 = snap(t_lift), snap(t_06_up + 1.0, before=False)
+            m2, m3 = snap(t_06_down), snap(t_end)
+            added = (m1 & ~m0) | (m3 & ~m2)
+            lab, _ = ndimage.label(added, structure=np.ones((3, 3)))
+            cl = [math.hypot(sl[0].stop - sl[0].start, sl[1].stop - sl[1].start) * gt.res
+                  for sl in ndimage.find_objects(lab)]
+            m['near_ground_phantom_cells'] = int(added.sum())
+            m['near_ground_phantom_clusters'] = int(sum(1 for L in cl if L > CLUSTER_LEN))
+            m['near_ground_phantom_longest_m'] = round(max(cl), 3) if cl else 0.0
 
     # --- clearance margin (ground truth) and RTF
     if air.any():
@@ -457,11 +546,14 @@ def evaluate(run_dir, world=None):
     meta = read_meta_txt(run_dir)
     world = world or meta.get('world')
     test_id = meta.get('test', '')
-    data = extract(run_dir)
+    data = extract(run_dir, keep_maps=test_id.startswith('A1.7'))
     m, series = compute(data, world, run_dir)
+    if test_id == 'A1.7':
+        test_id = 'A1.7' + meta.get('style', 'a')
     m['test'] = test_id
     m['run'] = os.path.basename(os.path.abspath(run_dir))
-    m['params'] = {k: meta[k] for k in ('speed', 'yaw_mode', 'laps', 'git', 'headless') if k in meta}
+    m['params'] = {k: meta[k] for k in ('speed', 'yaw_mode', 'laps', 'git', 'headless', 'style', 'extra_params',
+                                        'replay_of', 'replay_name', 'replay_override') if k in meta}
     ok, lines = judge(test_id, m)
     m['pass'] = ok
     json.dump(m, open(os.path.join(run_dir, 'metrics.json'), 'w'), indent=1)
@@ -471,7 +563,9 @@ def evaluate(run_dir, world=None):
             'heading_after_turn_max_deg', 'turns_detected', 'static_drift_m', 'static_drift_deg', 'static_jitter_std_m',
             'static_jitter_max_m', 'static_raw_max_from_start_m', 'pose_rate_hz', 'precision',
             'recall', 'phantom_cells', 'phantom_fraction', 'phantom_clusters', 'coverage',
-            'clearance_margin_min_m', 'rtf_mean']
+            'clearance_margin_min_m', 'rtf_mean', 'tilt_max_deg', 'wall_offset_p99_m', 'corridor_free_width_min_m',
+            'corridor_free_width_where', 'near_ground_phantom_cells', 'near_ground_phantom_clusters',
+            'near_ground_phantom_longest_m']
     print(f"=== {test_id} {world}  {m['run']}")
     if 'error' in m:
         print('ERROR:', m['error'])
@@ -492,15 +586,25 @@ def evaluate(run_dir, world=None):
 
 def summary(test_id, root):
     rows = []
-    for p in glob.glob(os.path.join(os.path.expanduser(root), f'*_{test_id}_*', 'metrics.json')):
-        rows.append(json.load(open(p)))
+    base_id = test_id[:4]
+    for p in glob.glob(os.path.join(os.path.expanduser(root), f'*_{base_id}_*', 'metrics.json')):
+        if '__replay_' in p:
+            continue                        # replays are tabulated by sweep_table.py
+        r = json.load(open(p))
+        if r.get('test', '').startswith(test_id):
+            rows.append(r)
     rows.sort(key=lambda r: r['run'], reverse=True)
-    keys = [k for k, *_ in CRITERIA.get(test_id, [])]
+    keys = [k for k, *_ in CRITERIA.get(test_id, CRITERIA.get(test_id + 'a', []))]
+    if test_id.startswith('A1.7'):
+        keys = ['near_ground_phantom_cells', 'near_ground_phantom_clusters', 'near_ground_phantom_longest_m']
+    if test_id == 'A1.6':
+        keys = keys + ['tilt_max_deg']
     print(f"{'run':52s} {'speed':>5s} " + ' '.join(f'{k[:14]:>14s}' for k in keys) + '  result')
     for r in rows:
         sp = r.get('params', {}).get('speed', '')
         vals = ' '.join(f"{str(r.get(k, '-'))[:14]:>14s}" for k in keys)
-        print(f"{r['run'][:52]:52s} {sp:>5s} {vals}  {'PASS' if r.get('pass') else 'FAIL'}")
+        verdict = 'recorded' if r.get('pass') is None else ('PASS' if r['pass'] else 'FAIL')
+        print(f"{r['run'][:52]:52s} {sp:>5s} {vals}  {verdict}")
     return 0
 
 

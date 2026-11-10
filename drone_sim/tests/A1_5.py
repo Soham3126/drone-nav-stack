@@ -5,4 +5,4 @@ phantom < 0.5 % of occupied cells, no phantom cluster > 0.2 m.
     for w in w3_tree_maze w4_maze_rooms; do for r in 1 2 3; do scripts/run_test.sh A1.5 $w gps 1800; done; done"""
 import sys
 from a1_common import run
-sys.exit(run('A1.5', 'w3_tree_maze', yaw='travel', worlds=['w3_tree_maze', 'w4_maze_rooms']))
+sys.exit(run('A1.5', 'w3_tree_maze', yaw='fixed', worlds=['w3_tree_maze', 'w4_maze_rooms']))
