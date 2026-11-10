@@ -30,7 +30,7 @@ fi
 tmux send-keys -t sim:rec C-c 2>/dev/null || true; sleep 3
 "$REPO/scripts/sim_down.sh"
 if [ -f "$REPO/drone_sim/tools/eval_run.py" ]; then
-  bash -ic "ros_env; python3 $REPO/drone_sim/tools/eval_run.py $OUT --world $WORLD" | tee "$OUT/report.txt"
+  bash -c "source /opt/ros/humble/setup.bash; source $HOME/drone_ws/install/setup.bash; python3 $REPO/drone_sim/tools/eval_run.py $OUT --world $WORLD" | tee "$OUT/report.txt"
 fi
 echo "results: $OUT"
 exit $RC

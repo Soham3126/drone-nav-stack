@@ -34,7 +34,8 @@ PKG = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from geom import ROBOT_R, load_meta  # noqa: E402
 
-OCC_T, FREE_T = 65, 25          # occupancy thresholds (values 0..100)
+OCC_T = 65                      # occupied: value >= 65 (book). Known-free: 0 <= value < 65, the same rule the
+                                # Nav2 static layer uses with trinary_costmap (Cartographer's free cells sit near 40-49)
 AIR_DZ = 0.3                    # airborne = truth height > ground + 0.3 m
 NEAR_WALL, PHANTOM_D, CLUSTER_LEN = 0.10, 0.20, 0.20
 RAY_RANGE, N_RAYS = 8.0, 720
@@ -295,7 +296,7 @@ def compute(data, world, run_dir=None):
         md, mi = data['map_data'], data['map_info']
         wx, wy = map_cells_world(md, mi, align)
         occ = md >= OCC_T
-        free = (md >= 0) & (md <= FREE_T)
+        free = (md >= 0) & (md < OCC_T)
         d_occ = gt.wall_dist(wx[occ], wy[occ])
         n_occ = int(occ.sum())
         m['map_occupied_cells'] = n_occ
