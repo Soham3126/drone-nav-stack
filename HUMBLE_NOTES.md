@@ -1,0 +1,42 @@
+# Deviations from the guidebook (v1.1)
+
+The guidebook targets Ubuntu 24.04 + ROS 2 Jazzy. This repository runs on
+**Ubuntu 22.04 + ROS 2 Humble**. Every difference is listed here; anything not listed
+follows the book.
+
+## Machine set-up (chapter 3)
+| Book | Here | Why |
+|---|---|---|
+| `ros-jazzy-*` packages | `ros-humble-*` | Humble is the ROS 2 release for 22.04 |
+| `ros-jazzy-ros-gz` | `ros-humble-ros-gzharmonic*` (OSRF repo) | Gazebo Harmonic is not Humble's default Gazebo |
+| `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` | `ROS_LOCALHOST_ONLY=1` | the Jazzy variable does not exist in Humble |
+| `pip install --break-system-packages` | plain `pip install --user` | 22.04 does not mark system Python as externally managed |
+| Python 3.12 | Python 3.10 | Ubuntu 22.04 |
+| ArduPilot venv `~/venv-ardupilot` | system Python | ArduPilot's installer did not create a venv on this machine |
+| — | scipy 1.15 from pip (`~/.local`) | Ubuntu's scipy 1.8 does not work with numpy 2.x |
+| — | NVIDIA PRIME variables in `ros_env` | laptop with hybrid graphics; Gazebo must render on the RTX GPU (RTF 0.93 → 0.98) |
+| `git describe --tags` = `Copter-4.7.2` | use `git describe --tags --exact-match --match 'Copter-*'` | the 4.7.2 commit carries ~20 tags; plain describe may print another one |
+
+## Code and configuration
+| File | Change | Why |
+|---|---|---|
+| `drone_slam/config/drone_2d.lua` | added `use_pose_extrapolator = true` | required key in cartographer_ros 2.0.900x; missing from the book's listing |
+| `drone_nav/config/planner.yaml` | planner plugin `nav2_smac_planner/SmacPlanner2D` | Humble (Nav2 1.1) plugin name form |
+| `drone_sim/tests/A0_1.py` | start clearance tested as ≥ 0.475 m to the wall **face** | the book's "≥ 0.5 m from walls" is impossible in a 1.0 m corridor (centre line is 0.475 m from each face, 0.5 m from each wall's centre line) |
+| `drone_sim/tools/make_maze.py` | writes two reachability masks: `reachable_free` (all free cells joined to the start) and `reachable_drone` (what the 0.27 m drone circle can sweep) | in W7 the room behind the 0.45 m gap is free space the drone can never enter |
+| `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
+
+## To verify on first use
+* `WP_SPD`, `RNGFND1_MIN`, `ARMING_SKIPCHK` are Copter 4.7 names taken from the book. After `sim_up.sh`,
+  in the `sitl` tmux window run `param show WP_SPD` etc. An unknown name means the 4.7 rename differs.
+* Nav2 Humble's `ComputePathToPose` result may not carry `error_code` (codes 205-208 in the book).
+  Checked when the mission brain is written.
+
+## Gemini prototype (archived, not used)
+Kept in `~/drone_gemini_archive_<date>/` for reference. Replaced because:
+* `iris_with_lidar` included only `iris_with_standoffs` plus a hand-copied ArduPilot plugin
+  (missing lift-drag and IMU wiring); the book includes the full `iris_with_ardupilot`.
+* `carto_2d.lua` published `odom` and relied on hand-made static transforms; no height filter,
+  motion filter or loop-closure-off settings.
+* `drone_autonomy` used MAVROS, swapped x/y in the ENU→NED conversion (wrong for our map frame,
+  see book 2.3), NavFn with `allow_unknown: true`, radius 0.35 m, and explore_lite as commander.

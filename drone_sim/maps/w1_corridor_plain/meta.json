@@ -1,0 +1,67 @@
+{
+ "name": "w1_corridor_plain",
+ "layout": "12 m straight corridor, 1.0 m wide, closed ends",
+ "generator": "drone_sim/tools/make_maze.py",
+ "cell_size_m": 1.0,
+ "lattice_cells": [
+  12,
+  1
+ ],
+ "wall_thickness_m": 0.05,
+ "wall_height_m": 2.44,
+ "lidar_plane_z_m": 1.2200000000000002,
+ "robot_radius_m": 0.27,
+ "map": {
+  "resolution": 0.05,
+  "origin": [
+   -0.5,
+   -0.5
+  ],
+  "width": 260,
+  "height": 40,
+  "pgm": "w1_corridor_plain.pgm",
+  "yaml": "w1_corridor_plain.yaml"
+ },
+ "start": {
+  "x": 0.5,
+  "y": 0.5,
+  "z": 0.195,
+  "yaw": 0.0,
+  "clearance_to_nearest_face_m": 0.475
+ },
+ "walls": [
+  [
+   -0.025,
+   -0.025,
+   12.025,
+   0.025
+  ],
+  [
+   -0.025,
+   0.975,
+   12.025,
+   1.025
+  ],
+  [
+   -0.025,
+   -0.025,
+   0.025,
+   1.025
+  ],
+  [
+   11.975,
+   -0.025,
+   12.025,
+   1.025
+  ]
+ ],
+ "boxes": [],
+ "low_boxes": [],
+ "rooms": [],
+ "doors": [],
+ "cells": {
+  "occupied": 1040,
+  "reachable_free": 4284,
+  "reachable_drone": 4260
+ }
+}

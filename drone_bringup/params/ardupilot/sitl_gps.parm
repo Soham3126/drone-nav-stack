@@ -1,0 +1,2 @@
+# sitl_gps.parm (profile "gps": scripted flights for SLAM data, GPS as truth source)
+# nothing to add: gazebo-iris defaults use GPS and compass

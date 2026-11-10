@@ -1,0 +1,5 @@
+string command        # guided | arm | takeoff | land | hold
+float32 value         # takeoff height (m)
+---
+bool success
+string message
