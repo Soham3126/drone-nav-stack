@@ -24,7 +24,9 @@ def yaw_of(q):
 
 
 class TruthCollector(Node):
-    """Records, with the wall-clock time of arrival:
+    """Records, with the wall-clock time of arrival.
+    (Callback names are deliberately unusual: rclpy's Node already owns attributes such as
+    _clock, and a method with that name gets overwritten -> 'ROSClock object is not callable'.)
        odom  : /ground_truth/odom  (t_wall, t_sim, x, y, z, yaw)
        truth : /truth/pose         (t_wall, x, y, z, yaw)
        clock : /clock              (t_wall, t_sim), at most 10 per second"""
@@ -33,26 +35,26 @@ class TruthCollector(Node):
         super().__init__('test_truth_collector')
         self.lock = threading.Lock()
         self.odom, self.truth, self.clock = [], [], []
-        self._last_clock = 0.0
-        self.create_subscription(Odometry, '/ground_truth/odom', self._odom, qos_profile_sensor_data)
-        self.create_subscription(PoseStamped, '/truth/pose', self._truth, qos_profile_sensor_data)
-        self.create_subscription(Clock, '/clock', self._clock, qos_profile_sensor_data)
+        self.t_last_clock_rx = 0.0
+        self.create_subscription(Odometry, '/ground_truth/odom', self.cb_ground_truth, qos_profile_sensor_data)
+        self.create_subscription(PoseStamped, '/truth/pose', self.cb_truth_pose, qos_profile_sensor_data)
+        self.create_subscription(Clock, '/clock', self.cb_sim_clock, qos_profile_sensor_data)
 
-    def _odom(self, m):
+    def cb_ground_truth(self, m):
         p, q = m.pose.pose.position, m.pose.pose.orientation
         ts = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
         with self.lock:
             self.odom.append((time.time(), ts, p.x, p.y, p.z, yaw_of(q)))
 
-    def _truth(self, m):
+    def cb_truth_pose(self, m):
         p, q = m.pose.position, m.pose.orientation
         with self.lock:
             self.truth.append((time.time(), p.x, p.y, p.z, yaw_of(q)))
 
-    def _clock(self, m):
+    def cb_sim_clock(self, m):
         now = time.time()
-        if now - self._last_clock >= 0.1:
-            self._last_clock = now
+        if now - self.t_last_clock_rx >= 0.1:
+            self.t_last_clock_rx = now
             with self.lock:
                 self.clock.append((now, m.clock.sec + m.clock.nanosec * 1e-9))
 
@@ -68,9 +70,14 @@ class Collector:
         return self.node
 
     def __exit__(self, *exc):
-        self.ex.shutdown()
-        self.node.destroy_node()
-        rclpy.shutdown()
+        # Ctrl+C makes rclpy shut its context down by itself; only shut down what is still up
+        try:
+            self.ex.shutdown(timeout_sec=2.0)
+            self.node.destroy_node()
+        except Exception:  # noqa: BLE001
+            pass
+        if rclpy.ok():
+            rclpy.shutdown()
         return False
 
 
