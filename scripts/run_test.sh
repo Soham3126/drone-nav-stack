@@ -22,7 +22,7 @@ tmux new-window -t sim -n cpu \
 SCRIPT="$REPO/drone_sim/tests/${ID//./_}.py"
 RC=0
 if [ -f "$SCRIPT" ]; then
-  bash -ic "ros_env; timeout $TMO python3 $SCRIPT --out $OUT --world $WORLD" || RC=$?
+  bash -c "source /opt/ros/humble/setup.bash; source $HOME/drone_ws/install/setup.bash; timeout $TMO python3 $SCRIPT --out $OUT --world $WORLD" < /dev/null || RC=$?
   echo "procedure exit code $RC" | tee -a "$OUT/meta.txt"
 else
   echo "No automated procedure for $ID. Perform the manual steps, then press Enter."; read -r
