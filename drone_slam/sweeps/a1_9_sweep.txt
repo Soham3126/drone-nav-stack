@@ -5,3 +5,6 @@ tw10   | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 10.
 nrd45  | TRAJECTORY_BUILDER_2D.submaps.num_range_data = 45
 lsw02  | TRAJECTORY_BUILDER_2D.real_time_correlative_scan_matcher.linear_search_window = 0.2
 mr8    | TRAJECTORY_BUILDER_2D.max_range = 8.0
+rw80   | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 80.
+rw160  | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 160.
+nrd120 | TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120
