@@ -51,14 +51,14 @@ TRAJECTORY_BUILDER_2D.real_time_correlative_scan_matcher.angular_search_window =
 TRAJECTORY_BUILDER_2D.real_time_correlative_scan_matcher.translation_delta_cost_weight = 1.
 TRAJECTORY_BUILDER_2D.real_time_correlative_scan_matcher.rotation_delta_cost_weight = 10.
 
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 0.2   -- ArduPilot example value
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 40.      -- default; IMU heading prediction is good
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 1.     -- A1.9 sweep: 0.2 -> 1 (with num_range_data 120, rotation_weight 80)
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 80.     -- A1.9 sweep: 40 -> 80
 
 TRAJECTORY_BUILDER_2D.motion_filter.max_distance_meters = 0.2
 TRAJECTORY_BUILDER_2D.motion_filter.max_angle_radians = math.rad(1.)
 TRAJECTORY_BUILDER_2D.motion_filter.max_time_seconds = 5.
 
-TRAJECTORY_BUILDER_2D.submaps.num_range_data = 90
+TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120    -- A1.9 sweep: 90 -> 120
 TRAJECTORY_BUILDER_2D.submaps.grid_options_2d.resolution = 0.05
 
 POSE_GRAPH.optimize_every_n_nodes = 0       -- loop closure off
