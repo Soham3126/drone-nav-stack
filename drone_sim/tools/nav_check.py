@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""nav_check.py - could the drone actually fly the map it built? (addition to guidebook A1.5/A1.8)
+"""nav_check.py - is the map right AROUND THE DRONE? (addition to guidebook A1.5/A1.8)
 
-Compares the final /map of a run with the true world the way the route planner sees them:
-every occupied cell is grown by the drone radius (0.27 m), so each cell says "the drone's
-centre may be here" or not. Then, inside the area the map has explored:
+The drone plans and steers with its own pose estimate inside its own map. If map and pose drift
+together, it is still safe; what matters is LOCAL consistency. Every 0.5 s of the flight:
 
-  max_intrusion_m   worst case where the MAP allows the drone's centre but the REAL drone would
-                    overlap a wall, by this much. 0 = the map never leads into a wall.
-                    (crash risk; the planner also keeps an inflation margin, so a few cm is tolerable)
-  cells_cut_off     1 m lattice cells the drone can really reach but cannot reach in the map
-                    (false blockages: parts of the maze exploration would miss)
-  missed_fraction   share of truly flyable centre space (explored area) the map forbids
-  dangerous_cells   centre cells the map allows that are truly too close to a wall
+  wall_missing   true walls within 0.8 m of the true drone, moved into the map with the drone's
+                 ESTIMATED pose: how far is each from the nearest mapped wall? A large value = a real
+                 wall the drone's map does not show where the drone would expect it -> collision risk.
+  wall_misplaced mapped walls within 1.5 m of the estimated drone, moved into the world with the TRUE
+                 pose: how far is each from the nearest true wall? Large = doubled / ghost walls nearby
+                 (corridors look narrower; false blockages).
 
-Usage: python3 nav_check.py RUN_DIR [RUN_DIR ...]      (folders with eval_data.npz, i.e. evaluated runs)
-       python3 nav_check.py --glob '*_A1.5_w4_maze_rooms_*__replay_v2_cur'
-Suggested limits: max_intrusion_m <= 0.05 and cells_cut_off == 0.
+Reported over the airborne flight: 99th percentile and maximum of each, in metres.
+Suggested limits (1 m corridors leave ~0.2 m each side of the 0.54 m drone):
+  wall_missing p99 <= 0.10 m   and   wall_misplaced p99 <= 0.15 m
+
+Usage: python3 nav_check.py RUN_DIR [...]   or   --glob '*_A1.5_w4_maze_rooms_*__replay_v2_cur'
+Uses RUN_DIR/eval_data.npz (written by eval_run.py).
 """
 import argparse
 import glob
@@ -25,91 +26,79 @@ import os
 import sys
 
 import numpy as np
-from scipy import ndimage
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import eval_run as ev  # noqa: E402
-from geom import ROBOT_R  # noqa: E402
 
-LIM_INTRUSION, LIM_CUT = 0.05, 0
-
-
-def alignment(T, E):
-    T = T[np.argsort(T[:, 0])]
-    E = E[np.argsort(E[:, 0])]
-    t_a = max(E[0, 0], T[0, 0])
-    yaw = np.unwrap(T[:, 4])
-    return (float(np.interp(t_a, T[:, 0], T[:, 1])), float(np.interp(t_a, T[:, 0], T[:, 2])),
-            float(np.interp(t_a, T[:, 0], yaw)))
+LIM_MISSING, LIM_MISPLACED = 0.10, 0.15
+NEAR_TRUE, NEAR_EST, DT, AIR_DZ = 0.8, 1.5, 0.5, 0.3
 
 
-def check(md, mi, align, world):
+def rot(a):
+    c, s = math.cos(a), math.sin(a)
+    return np.array([[c, -s], [s, c]])
+
+
+def check(data, world):
     gt = ev.GroundTruth(world)
-    res = gt.res
-    wx, wy = ev.map_cells_world(md, mi, align)
-    occ_m = np.zeros_like(gt.occ)
-    known_m = np.zeros_like(gt.occ)
-    for sel, grid in ((md >= ev.OCC_T, occ_m), (md >= 0, known_m)):
-        i, j, ins = gt.idx(wx[sel], wy[sel])
-        grid[j[ins], i[ins]] = True
-    free_m = known_m & ~occ_m
-    # centre space
-    true_clear = ndimage.distance_transform_edt(~gt.occ) * res
-    map_clear = ndimage.distance_transform_edt(~occ_m) * res
-    c_true = true_clear >= ROBOT_R
-    c_map = (map_clear >= ROBOT_R) & free_m
-    s = gt.meta['start']
-    si, sj, _ = gt.idx(np.array([s['x']]), np.array([s['y']]))
-    si, sj = int(si[0]), int(sj[0])
-    lt, _ = ndimage.label(c_true)
-    lm, _ = ndimage.label(c_map)
-    r_true = lt == lt[sj, si]
-    if not c_map[sj, si]:
-        # start pose blocked in the map: take the map component closest to the start
-        d = ndimage.distance_transform_edt(~c_map, return_indices=True)[1]
-        sj2, si2 = d[0][sj, si], d[1][sj, si]
-        r_map = (lm == lm[sj2, si2]) & c_map
-    else:
-        r_map = lm == lm[sj, si]
-    explored = ndimage.binary_dilation(known_m, iterations=int(round(ROBOT_R / res)))
-    out = {}
-    danger = r_map & ~c_true
-    intr = np.clip(ROBOT_R - true_clear[r_map], 0, None)
-    out['max_intrusion_m'] = round(float(intr.max()) if intr.size else 0.0, 3)
-    out['dangerous_cells'] = int(danger.sum())
-    if danger.any():
-        jj, ii = np.unravel_index(np.argmax(np.where(danger, ROBOT_R - true_clear, -1)), danger.shape)
-        out['worst_at'] = [round(float(gt.ox + (ii + .5) * res), 2), round(float(gt.oy + (jj + .5) * res), 2)]
-    need = r_true & explored
-    out['missed_fraction'] = round(float((need & ~r_map).sum() / max(1, need.sum())), 4)
-    # lattice cells cut off
-    c = gt.meta['cell_size_m']
-    nx, ny = gt.meta['lattice_cells']
-    cut = []
-    for ix in range(nx):
-        for iy in range(ny):
-            x, y = (ix + .5) * c, (iy + .5) * c
-            i, j = int((x - gt.ox) / res), int((y - gt.oy) / res)
-            if not (r_true[j, i] and explored[j, i]):
-                continue
-            # cell counts as reachable in the map if any centre-space cell within 0.25 m is reachable
-            k = int(0.25 / res)
-            if not r_map[max(0, j - k):j + k + 1, max(0, i - k):i + k + 1].any():
-                cut.append([round(x, 2), round(y, 2)])
-    out['cells_cut_off'] = len(cut)
-    out['cut_off_cells'] = cut[:8]
-    out['pass'] = out['max_intrusion_m'] <= LIM_INTRUSION and out['cells_cut_off'] <= LIM_CUT
+    T = data['truth'][np.argsort(data['truth'][:, 0])]
+    E = data['est'][np.argsort(data['est'][:, 0])]
+    _, ui = np.unique(E[:, 0], return_index=True)
+    E = E[ui]
+    md, mi = data['map_data'], data['map_info']
+    mx, my = ev.map_cells_world(md, mi, (0.0, 0.0, 0.0))        # map frame
+    occ = md >= ev.OCC_T
+    known = md >= 0
+    P = np.stack([mx[occ], my[occ]], 1)
+    K = np.stack([mx[known], my[known]], 1)
+    tree_m, tree_k = cKDTree(P), cKDTree(K)
+    jt, it = np.where(gt.occ)
+    G = np.stack([gt.ox + (it + .5) * gt.res, gt.oy + (jt + .5) * gt.res], 1)
+    tree_g = cKDTree(G)
+    z0 = float(np.median(T[:50, 3]))
+    yt, ye = np.unwrap(T[:, 4]), np.unwrap(E[:, 3])
+    t0, t1 = max(T[0, 0], E[0, 0]), min(T[-1, 0], E[-1, 0])
+    miss_all, mis_all, worst = [], [], (0.0, None)
+    for t in np.arange(t0, t1, DT):
+        if np.interp(t, T[:, 0], T[:, 3]) < z0 + AIR_DZ:
+            continue
+        tp = np.array([np.interp(t, T[:, 0], T[:, 1]), np.interp(t, T[:, 0], T[:, 2])])
+        ep = np.array([np.interp(t, E[:, 0], E[:, 1]), np.interp(t, E[:, 0], E[:, 2])])
+        Rt, Re = rot(np.interp(t, T[:, 0], yt)), rot(np.interp(t, E[:, 0], ye))
+        # true walls near the drone -> map frame via the estimated pose
+        g = G[tree_g.query_ball_point(tp, NEAR_TRUE)]
+        if len(g):
+            gm = ep + ((g - tp) @ Rt) @ Re.T
+            in_known = tree_k.query(gm)[0] <= gt.res        # only where the map has an opinion
+            if in_known.any():
+                d = tree_m.query(gm[in_known])[0]
+                miss_all.append(d)
+                if d.max() > worst[0]:
+                    worst = (float(d.max()), [round(float(v), 2) for v in tp])
+        # mapped walls near the estimate -> world via the true pose
+        p = P[tree_m.query_ball_point(ep, NEAR_EST)]
+        if len(p):
+            pw = tp + ((p - ep) @ Re) @ Rt.T
+            mis_all.append(tree_g.query(pw)[0])
+    out = {'samples': len(miss_all)}
+    if not miss_all:
+        out['error'] = 'no airborne samples'
+        return out
+    a, b = np.concatenate(miss_all), np.concatenate(mis_all) if mis_all else np.zeros(1)
+    out.update(wall_missing_p99=round(float(np.percentile(a, 99)), 3), wall_missing_max=round(float(a.max()), 3),
+               wall_misplaced_p99=round(float(np.percentile(b, 99)), 3), wall_misplaced_max=round(float(b.max()), 3),
+               worst_missing_at=worst[1])
+    out['pass'] = out['wall_missing_p99'] <= LIM_MISSING and out['wall_misplaced_p99'] <= LIM_MISPLACED
     return out
 
 
 def check_run(run):
     meta = ev.read_meta_txt(run)
-    world = meta.get('world')
-    d = np.load(os.path.join(run, 'eval_data.npz'), allow_pickle=True)
+    d = dict(np.load(os.path.join(run, 'eval_data.npz'), allow_pickle=True))
     if 'map_data' not in d or len(d['est']) < 10:
         return {'error': 'no map or estimate in eval_data.npz'}
-    r = check(d['map_data'], d['map_info'], alignment(d['truth'], d['est']), world)
-    r['world'] = world
+    r = check(d, meta.get('world'))
     json.dump(r, open(os.path.join(run, 'nav_check.json'), 'w'), indent=1)
     return r
 
@@ -117,27 +106,25 @@ def check_run(run):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('runs', nargs='*')
-    ap.add_argument('--glob', help="pattern inside ~/drone_results, e.g. '*_A1.5_w4_*__replay_v2_cur'")
+    ap.add_argument('--glob', action='append', default=[], help="pattern in ~/drone_results (repeatable)")
     a = ap.parse_args()
     runs = list(a.runs)
-    if a.glob:
-        runs += sorted(glob.glob(os.path.join(os.path.expanduser('~/drone_results'), a.glob)))
+    for g in a.glob:
+        runs += sorted(glob.glob(os.path.join(os.path.expanduser('~/drone_results'), g)))
     runs = [r for r in runs if os.path.isfile(os.path.join(r, 'eval_data.npz'))]
     if not runs:
         ap.error('no evaluated run folders given')
-    print(f"{'run':62s} {'intrusion':>9s} {'cut off':>7s} {'missed':>7s} {'danger':>6s}  result")
-    n_ok = 0
+    print(f"{'run':62s} {'missing p99/max':>16s} {'misplaced p99/max':>18s}  result")
+    n = 0
     for r in runs:
         x = check_run(r)
         if 'error' in x:
             print(f"{os.path.basename(r)[:62]:62s} {x['error']}")
             continue
-        n_ok += x['pass']
-        print(f"{os.path.basename(r)[:62]:62s} {x['max_intrusion_m']:9.3f} {x['cells_cut_off']:7d} "
-              f"{x['missed_fraction']:7.3f} {x['dangerous_cells']:6d}  {'PASS' if x['pass'] else 'FAIL'}"
-              + (f"  worst at {x['worst_at']}" if x.get('worst_at') and x['max_intrusion_m'] > LIM_INTRUSION else '')
-              + (f"  cut off e.g. {x['cut_off_cells'][:3]}" if x['cells_cut_off'] else ''))
-    print(f"\n{n_ok}/{len(runs)} pass (limits: intrusion <= {LIM_INTRUSION} m, no cells cut off)")
+        n += x['pass']
+        print(f"{os.path.basename(r)[:62]:62s} {x['wall_missing_p99']:7.3f}/{x['wall_missing_max']:<7.3f}  "
+              f"{x['wall_misplaced_p99']:8.3f}/{x['wall_misplaced_max']:<8.3f}  {'PASS' if x['pass'] else 'FAIL'}")
+    print(f"\n{n}/{len(runs)} pass (limits: wall_missing p99 <= {LIM_MISSING} m, wall_misplaced p99 <= {LIM_MISPLACED} m)")
     return 0
 
 
