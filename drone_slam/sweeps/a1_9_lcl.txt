@@ -1,0 +1,5 @@
+# Loop closure with a SHORT search radius: only match scans to submaps near where the drone believes it is,
+# so identical-looking junctions elsewhere in the maze cannot be matched (cause of the 1.8 m lc45/lc90 errors).
+lcl_1m | POSE_GRAPH.optimize_every_n_nodes = 90 POSE_GRAPH.global_sampling_ratio = 0. POSE_GRAPH.constraint_builder.max_constraint_distance = 1. POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 0.5 POSE_GRAPH.constraint_builder.min_score = 0.65
+lcl_2m | POSE_GRAPH.optimize_every_n_nodes = 90 POSE_GRAPH.global_sampling_ratio = 0. POSE_GRAPH.constraint_builder.max_constraint_distance = 2. POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 1. POSE_GRAPH.constraint_builder.min_score = 0.65
+lcl_1m_strict | POSE_GRAPH.optimize_every_n_nodes = 90 POSE_GRAPH.global_sampling_ratio = 0. POSE_GRAPH.constraint_builder.max_constraint_distance = 1. POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 0.5 POSE_GRAPH.constraint_builder.min_score = 0.75

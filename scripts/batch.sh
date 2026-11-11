@@ -12,6 +12,7 @@ if [ "${1:-}" = status ]; then
   echo "log: $LOG"
   if tmux has-session -t batch 2>/dev/null; then echo "state: RUNNING"; else echo "state: FINISHED (or stopped)"; fi
   echo "runs started: $(grep -c '^up: tmux attach' "$LOG")   PASS: $(grep -cE '^A[0-9.]+: PASS' "$LOG")   FAIL: $(grep -cE '^A[0-9.]+: FAIL' "$LOG")"
+  D=$(grep -c '^done:' "$LOG"); [ "$D" -gt 0 ] && echo "replays done: $D   PASS: $(grep -c '^done:.*PASS' "$LOG")   FAIL: $(grep -c '^done:.*FAIL' "$LOG")"
   echo "--- last lines:"; tail -4 "$LOG"
   exit 0
 fi

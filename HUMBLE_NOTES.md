@@ -35,6 +35,8 @@ follows the book.
 | `drone_sim/tests/A1_7.py` | style (b) uses WP_SPD_UP 0.1 m/s; style (c) hovers at 0.3 m, steps 0.3 m to the left of the heading and back | book gives "e.g. WP_SPD_UP lowered" without a value |
 | `drone_sim/tools/scripted_flight.py` | locks onto the autopilot's heartbeat (not the first heartbeat seen) | a ground-station heartbeat gave target system 0 in a SITL test |
 | `scripts/run_test.sh`, `scripts/batch.sh` | no interactive shells in non-tmux steps; batches run in tmux session "batch" | an interactive shell in a background job is stopped by Linux job control ("Stopped (tty input)") |
+| `drone_sim/models/iris_with_lidar/model.sdf` | IMU noise and bias of the BOM's MPU6500, LiDAR noise 0.02 m (RPLIDAR C1) | the noise-free IMU made the simulation optimistic about heading drift; results before this change (git 7d425fb and earlier) used a perfect IMU |
+| `drone_sim/tools/nav_check.py` | added: navigability check (map vs truth in drone-centre space: intrusion into walls, cells cut off) | A1.5's global-accuracy limits do not say whether a map is safe to plan in; decides how much W4's A1.5 shortfall matters |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use
