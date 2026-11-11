@@ -1,0 +1,6 @@
+base       |
+tw1_nrd120 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 1. TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120
+tw1_nrd150 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 1. TRAJECTORY_BUILDER_2D.submaps.num_range_data = 150
+tw2_nrd120 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 2. TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120
+nrd150     | TRAJECTORY_BUILDER_2D.submaps.num_range_data = 150
+tw1_nrd120_rw80 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 1. TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120 TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 80.
