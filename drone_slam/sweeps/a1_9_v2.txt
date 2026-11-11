@@ -1,0 +1,6 @@
+v2_cur      |
+v2_rw120    | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 120.
+v2_rw160    | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 160.
+v2_tw2      | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 2.
+v2_tw2_rw120 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 2. TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 120.
+v2_md01     | TRAJECTORY_BUILDER_2D.motion_filter.max_distance_meters = 0.1
