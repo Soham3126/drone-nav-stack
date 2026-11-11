@@ -1,0 +1,2 @@
+lc90 | POSE_GRAPH.optimize_every_n_nodes = 90
+lc45 | POSE_GRAPH.optimize_every_n_nodes = 45
