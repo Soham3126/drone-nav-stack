@@ -61,6 +61,13 @@ TRAJECTORY_BUILDER_2D.motion_filter.max_time_seconds = 5.
 TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120    -- A1.9 sweep: 90 -> 120
 TRAJECTORY_BUILDER_2D.submaps.grid_options_2d.resolution = 0.05
 
-POSE_GRAPH.optimize_every_n_nodes = 0       -- loop closure off
+-- Loop closure ON with a SHORT search radius (A1.9 sweep, deviation from the book's "off"):
+-- only match against submaps within 1 m of where the drone believes it is, so look-alike junctions
+-- elsewhere in the maze cannot be matched (unrestricted loop closure gave 1.8 m errors in W4).
+POSE_GRAPH.optimize_every_n_nodes = 90
+POSE_GRAPH.global_sampling_ratio = 0.
+POSE_GRAPH.constraint_builder.max_constraint_distance = 1.
+POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 0.5
+POSE_GRAPH.constraint_builder.min_score = 0.75
 
 return options
