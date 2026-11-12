@@ -37,6 +37,10 @@ follows the book.
 | `scripts/run_test.sh`, `scripts/batch.sh` | no interactive shells in non-tmux steps; batches run in tmux session "batch" | an interactive shell in a background job is stopped by Linux job control ("Stopped (tty input)") |
 | `drone_sim/models/iris_with_lidar/model.sdf` | IMU noise and bias of the BOM's MPU6500, LiDAR noise 0.02 m (RPLIDAR C1) | the noise-free IMU made the simulation optimistic about heading drift; results before this change (git 7d425fb and earlier) used a perfect IMU |
 | `drone_sim/tools/nav_check.py` | added: navigability check (map vs truth in drone-centre space: intrusion into walls, cells cut off) | A1.5's global-accuracy limits do not say whether a map is safe to plan in; decides how much W4's A1.5 shortfall matters |
+| `drone_slam/scripts/imu_bias_node.py` | added: gyro bias removal (`/imu_raw` -> `/imu`), estimated whenever the drone is still on the ground | noisy-IMU flights: heading crept +0.01 deg/s to 3 deg (39 cm error) in the bad W4/A1.6 runs; standard practice on real drones |
+| `drone_sim/tools/imu_drift_sim.py` | sim only: wandering gyro bias (Gauss-Markov, 1e-4 rad/s, 300 s) on top of Gazebo's constant bias | otherwise ground calibration would remove the simulated bias completely; replace with real MPU6500 values |
+| `drone_sim/tests/A1_7.py` | style (c) side-step at 0.5 m (was 0.3 m) | ArduPilot's land detector disarmed the drone at 0.3 m |
+| `drone_sim/tools/eval_run.py` (A1.8) | judged by local wall checks around the drone (nav_check): misplaced and missing walls p99 < 0.10 m | the global wall offset measured overall drift, and corridor_free_width was shown wrong (0.3 m in the box room) |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use

@@ -2,7 +2,8 @@
 """A1.7 Near-ground phantom walls: W1 or W2, gps, one take-off style per run (env STYLE):
   a  brisk vertical: default climb rate to 1.1 m, hover 8 s, land            (pass: no phantom cluster > 0.2 m)
   b  slow vertical : WP_SPD_UP 0.1 m/s: ~6 s below 0.6 m, so the 5 s timer inserts scans low  (recorded)
-  c  disturbed     : take off to 0.3 m, move 0.3 m sideways and back, then climb to 1.1 m (recorded)
+  c  disturbed     : take off to 0.5 m, move 0.3 m sideways and back, then climb to 1.1 m (recorded)
+               (0.3 m in the first version: ArduPilot's land detector disarmed the drone)
 eval_run compares maps before lift-off, after passing 0.6 m, before descending through 0.6 m and after
 landing, and counts phantom cells added below 0.6 m.
     for st in a b c; do for r in 1 2 3; do STYLE=$st scripts/run_test.sh A1.7 w1_corridor_plain gps; done; done"""
@@ -45,12 +46,12 @@ try:
     f.set_mode('GUIDED')
     f.arm()
     if style == 'c':
-        f.takeoff(0.3, d0)
+        f.takeoff(0.5, d0)
         # "sideways" = 90 deg left of the heading; heading east (yaw 0) -> north
         dn, de = math.cos(start['yaw']) * 0.3, -math.sin(start['yaw']) * 0.3
-        f.goto(n0 + dn, e0 + de, d0 - 0.3, yaw_ned, 0.08, 20)
+        f.goto(n0 + dn, e0 + de, d0 - 0.5, yaw_ned, 0.08, 20)
         print(f'  sidestep 0.3 m at {d0 - f.lpos[3]:.2f} m height')
-        f.goto(n0, e0, d0 - 0.3, yaw_ned, 0.08, 20)
+        f.goto(n0, e0, d0 - 0.5, yaw_ned, 0.08, 20)
         print(f'  back over the start at {d0 - f.lpos[3]:.2f} m height')
         f.goto(n0, e0, d0 - 1.1, yaw_ned, 0.15, 30)
         print(f'  climbed to {d0 - f.lpos[3]:.2f} m')

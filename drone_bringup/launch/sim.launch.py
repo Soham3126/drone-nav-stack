@@ -47,7 +47,12 @@ def setup(context):
              parameters=[{'robot_description': urdf, 'use_sim_time': True}]),
         Node(package='drone_sim', executable='truth_relay.py', name='truth_relay', output='screen',
              parameters=[{'use_sim_time': True}]),
+        Node(package='drone_sim', executable='imu_drift_sim.py', name='imu_drift_sim', output='screen',
+             parameters=[{'use_sim_time': True}]),
     ]
+    if not slam:   # slam.launch.py starts the bias node itself
+        actions.append(Node(package='drone_slam', executable='imu_bias_node.py', name='imu_bias_node',
+                            output='screen', parameters=[{'use_sim_time': True}]))
     if slam:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(

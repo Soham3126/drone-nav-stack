@@ -50,7 +50,9 @@ CRITERIA = {
              ('recall', '>=', 0.90), ('phantom_fraction', '<', 0.005), ('phantom_clusters', '==', 0)],
     'A1.6': [('phantom_clusters', '==', 0), ('ate_rmse_m', '<', 0.15)],
     'A1.7a': [('near_ground_phantom_clusters', '==', 0)],      # style (a); (b) and (c) are recorded only
-    'A1.8': [('wall_offset_p99_m', '<', 0.10), ('corridor_free_width_min_m', '>=', 0.80)],
+    # A1.8 doubling/narrowing judged locally around the drone (nav_check); the global wall_offset and
+    # corridor_free_width are still reported but measure overall drift / single stray cells
+    'A1.8': [('nav_wall_misplaced_p99', '<', 0.10), ('nav_wall_missing_p99', '<', 0.10)],
 }
 
 
@@ -550,6 +552,11 @@ def evaluate(run_dir, world=None):
     m, series = compute(data, world, run_dir)
     if test_id == 'A1.7':
         test_id = 'A1.7' + meta.get('style', 'a')
+    if test_id.startswith(('A1.5', 'A1.6', 'A1.8')) and 'map_data' in data and 'error' not in m:
+        import nav_check
+        nc = nav_check.check(data, world)
+        if 'error' not in nc:
+            m['nav_wall_missing_p99'], m['nav_wall_misplaced_p99'] = nc['wall_missing_p99'], nc['wall_misplaced_p99']
     m['test'] = test_id
     m['run'] = os.path.basename(os.path.abspath(run_dir))
     m['params'] = {k: meta[k] for k in ('speed', 'yaw_mode', 'laps', 'git', 'headless', 'style', 'extra_params',
@@ -565,7 +572,7 @@ def evaluate(run_dir, world=None):
             'recall', 'phantom_cells', 'phantom_fraction', 'phantom_clusters', 'coverage',
             'clearance_margin_min_m', 'rtf_mean', 'tilt_max_deg', 'wall_offset_p99_m', 'corridor_free_width_min_m',
             'corridor_free_width_where', 'near_ground_phantom_cells', 'near_ground_phantom_clusters',
-            'near_ground_phantom_longest_m']
+            'near_ground_phantom_longest_m', 'nav_wall_missing_p99', 'nav_wall_misplaced_p99']
     print(f"=== {test_id} {world}  {m['run']}")
     if 'error' in m:
         print('ERROR:', m['error'])

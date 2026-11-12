@@ -16,6 +16,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('config_dir'),
         DeclareLaunchArgument('config', default_value='replay.lua'),
+        Node(package='drone_slam', executable='imu_bias_node.py', name='imu_bias_node', parameters=[sim]),
         Node(package='robot_state_publisher', executable='robot_state_publisher',
              parameters=[{'robot_description': urdf, 'use_sim_time': True}]),
         Node(package='cartographer_ros', executable='cartographer_node', name='cartographer_node', output='screen',

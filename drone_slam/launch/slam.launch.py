@@ -1,4 +1,4 @@
-"""Cartographer 2D + occupancy grid (guidebook 2.5)."""
+"""Gyro bias removal + Cartographer 2D + occupancy grid (guidebook 2.5)."""
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -15,6 +15,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('config', default_value='drone_2d.lua'),
+        # gyro bias removal: /imu_raw -> /imu (the IMU driver, or the simulation, publishes /imu_raw)
+        Node(package='drone_slam', executable='imu_bias_node.py', name='imu_bias_node', output='screen',
+             parameters=[{'use_sim_time': use_sim_time}]),
         Node(package='cartographer_ros', executable='cartographer_node', name='cartographer_node',
              output='screen',
              arguments=['-configuration_directory', config_dir,

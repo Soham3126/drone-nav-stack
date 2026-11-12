@@ -47,7 +47,12 @@ sleep 4
 python3 "$REPO/drone_sim/tools/replay_collect.py" --out "$OUT" > collect.log 2>&1 & GP=$!
 sleep 2
 echo "replaying $(basename "$RUN") with '$NAME' at rate $RATE (about as long as the flight) ..."
-if ! ros2 bag play "$RUN/bag" --topics /scan /imu /clock /ground_truth/odom --rate "$RATE" > play.log 2>&1; then
+# IMU into the bias node: new bags carry /imu_raw; older bags only /imu (raw then) -> remap it when IMUCAL=1
+if grep -q "name: /imu_raw" "$RUN/bag/metadata.yaml"; then IMUARGS="/imu_raw"
+elif [ "${IMUCAL:-0}" = 1 ]; then IMUARGS="/imu --remap /imu:=/imu_raw"
+else IMUARGS="/imu"; fi
+echo "imu_source=$IMUARGS" >> meta.txt
+if ! ros2 bag play "$RUN/bag" --topics /scan /clock /ground_truth/odom $IMUARGS --rate "$RATE" > play.log 2>&1; then
   echo "bag play FAILED:"; tail -5 play.log; stop_pid $GP; stop_pid $LP; stop_pid $CP; cleanup; exit 1
 fi
 wait $GP || true                         # the collector stops by itself a few seconds after playback
