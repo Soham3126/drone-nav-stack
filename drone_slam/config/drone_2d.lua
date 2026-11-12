@@ -64,7 +64,7 @@ TRAJECTORY_BUILDER_2D.submaps.grid_options_2d.resolution = 0.05
 -- Loop closure ON with a SHORT search radius (A1.9 sweep, deviation from the book's "off"):
 -- only match against submaps within 1 m of where the drone believes it is, so look-alike junctions
 -- elsewhere in the maze cannot be matched (unrestricted loop closure gave 1.8 m errors in W4).
-POSE_GRAPH.optimize_every_n_nodes = 90
+POSE_GRAPH.optimize_every_n_nodes = 45      -- A1.9 noisy-IMU sweep: 90 -> 45 (W4 ATE worst 10.1 -> 9.7 cm, navigability 5/6 -> 6/6)
 POSE_GRAPH.global_sampling_ratio = 0.
 POSE_GRAPH.constraint_builder.max_constraint_distance = 1.
 POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 0.5
