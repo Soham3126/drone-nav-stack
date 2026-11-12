@@ -3,6 +3,7 @@
 # Usage: scripts/sim_up.sh <world> <profile> [out_dir]
 #   env: HEADLESS=1 (default) | 0     FLOW=0 (default) | 1     MANGLE=<yaml> (truth profile)
 #        SLAM=true (default) | false  (gps profile: run Cartographer alongside or not)
+#        GATE=1  pausable gates on /scan and /imu before Cartographer (A1.11)
 set -euo pipefail
 WORLD=${1:?world, e.g. w0_box_room}; PROFILE=${2:?profile: gps|truth|slam|full}
 OUT=${3:-$HOME/drone_results/manual_$(date +%Y%m%d_%H%M%S)}
@@ -29,6 +30,6 @@ tmux new-window -t sim -n sitl \
   "bash -ic 'ap_env; cd $OUT; $SIMV -v ArduCopter -f gazebo-iris --model JSON -w -N $PARMS 2>&1 | tee $OUT/sitl.log'"
 sleep 20
 tmux new-window -t sim -n ros \
-  "bash -ic 'ros_env; ros2 launch drone_bringup sim.launch.py profile:=$PROFILE slam:=${SLAM:-true} world:=$WORLD out_dir:=$OUT mangle:=${MANGLE:-none} 2>&1 | tee $OUT/ros.log'"
+  "bash -ic 'ros_env; ros2 launch drone_bringup sim.launch.py profile:=$PROFILE slam:=${SLAM:-true} world:=$WORLD out_dir:=$OUT mangle:=${MANGLE:-none} gate:=${GATE:-false} 2>&1 | tee $OUT/ros.log'"
 echo "up: tmux attach -t sim     down: scripts/sim_down.sh   results: $OUT"
 echo "tmux windows: gz (Gazebo), sitl (MAVProxy prompt), ros (ROS nodes).  Switch: Ctrl+b then n.  Leave: Ctrl+b then d."

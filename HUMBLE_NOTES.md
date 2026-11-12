@@ -41,6 +41,9 @@ follows the book.
 | `drone_sim/tools/imu_drift_sim.py` | sim only: wandering gyro bias (Gauss-Markov, 1e-4 rad/s, 300 s) on top of Gazebo's constant bias | otherwise ground calibration would remove the simulated bias completely; replace with real MPU6500 values |
 | `drone_sim/tests/A1_7.py` | style (c) side-step at 0.5 m (was 0.3 m) | ArduPilot's land detector disarmed the drone at 0.3 m |
 | `drone_sim/tools/eval_run.py` (A1.8) | judged by local wall checks around the drone (nav_check): misplaced and missing walls p99 < 0.10 m | the global wall offset measured overall drift, and corridor_free_width was shown wrong (0.3 m in the box room) |
+| `drone_sim/tools/stream_gate.py` | lives in drone_sim (book lists it under B) and is wired before Cartographer with `GATE=1` | needed for A1.11 before drone_bridge exists |
+| `drone_sim/tests/A1_10.py` | effective delay found by matching velocities (not positions) of the received pose stream against ground truth | drift and loop-closure corrections shift positions by a constant and biased a position-based fit (synthetic check: 63 ms true -> 70 ms found) |
+| `drone_sim/tests/A1_11.py` | pauses during hover and during flight: imu 2 s, scan 2 s, imu 10 s, scan 10 s, 15 s apart; drone flies on GPS throughout | book gives the pauses but not the order or spacing |
 | `scripts/sim_up.sh` | calls `sim_vehicle.py` by full path; refuses to start twice; `SLAM=false` option | robustness |
 
 ## To verify on first use

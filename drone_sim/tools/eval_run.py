@@ -593,12 +593,12 @@ def evaluate(run_dir, world=None):
 
 def summary(test_id, root):
     rows = []
-    base_id = test_id[:4]
+    base_id = test_id[:-1] if test_id[-1] in 'abc' else test_id      # A1.7a -> A1.7; A1.10 stays A1.10
     for p in glob.glob(os.path.join(os.path.expanduser(root), f'*_{base_id}_*', 'metrics.json')):
         if '__replay_' in p:
             continue                        # replays are tabulated by sweep_table.py
         r = json.load(open(p))
-        if r.get('test', '').startswith(test_id):
+        if r.get('test', '') == test_id or (test_id == base_id and r.get('test', '')[:-1] == base_id):
             rows.append(r)
     rows.sort(key=lambda r: r['run'], reverse=True)
     keys = [k for k, *_ in CRITERIA.get(test_id, CRITERIA.get(test_id + 'a', []))]

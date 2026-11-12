@@ -28,6 +28,7 @@ def setup(context):
     slam = LaunchConfiguration('slam').perform(context).lower() in ('1', 'true', 'yes')
     world = LaunchConfiguration('world').perform(context)
     out_dir = LaunchConfiguration('out_dir').perform(context)
+    gate = LaunchConfiguration('gate').perform(context).lower() in ('1', 'true', 'yes')
     if profile not in ALL:
         raise RuntimeError(f"unknown profile '{profile}'; choose one of {ALL}")
     if profile not in READY:
@@ -53,11 +54,19 @@ def setup(context):
     if not slam:   # slam.launch.py starts the bias node itself
         actions.append(Node(package='drone_slam', executable='imu_bias_node.py', name='imu_bias_node',
                             output='screen', parameters=[{'use_sim_time': True}]))
+    slam_args = {'use_sim_time': 'true'}
+    if gate:   # A1.11: Cartographer's inputs pass through pausable gates
+        for name, typ, src in (('scan_gate', 'sensor_msgs/msg/LaserScan', '/scan'),
+                               ('imu_gate', 'sensor_msgs/msg/Imu', '/imu')):
+            actions.append(Node(package='drone_sim', executable='stream_gate.py', name=name, output='screen',
+                                parameters=[{'type': typ, 'input': src, 'output': src + '_gated',
+                                             'use_sim_time': True}]))
+        slam_args.update(scan_topic='/scan_gated', imu_topic='/imu_gated')
     if slam:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(
                 get_package_share_directory('drone_slam'), 'launch', 'slam.launch.py')),
-            launch_arguments={'use_sim_time': 'true'}.items()))
+            launch_arguments=slam_args.items()))
     return actions
 
 
@@ -68,5 +77,6 @@ def generate_launch_description():
         DeclareLaunchArgument('world', default_value='w0_box_room'),
         DeclareLaunchArgument('out_dir', default_value=''),
         DeclareLaunchArgument('mangle', default_value='none'),
+        DeclareLaunchArgument('gate', default_value='false'),
         OpaqueFunction(function=setup),
     ])

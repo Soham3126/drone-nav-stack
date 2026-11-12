@@ -12,7 +12,10 @@ def generate_launch_description():
     config_dir = os.path.join(get_package_share_directory('drone_slam'), 'config')
     use_sim_time = LaunchConfiguration('use_sim_time')
     config = LaunchConfiguration('config')
+    scan_topic, imu_topic = LaunchConfiguration('scan_topic'), LaunchConfiguration('imu_topic')
     return LaunchDescription([
+        DeclareLaunchArgument('scan_topic', default_value='/scan'),
+        DeclareLaunchArgument('imu_topic', default_value='/imu'),
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('config', default_value='drone_2d.lua'),
         # gyro bias removal: /imu_raw -> /imu (the IMU driver, or the simulation, publishes /imu_raw)
@@ -22,7 +25,7 @@ def generate_launch_description():
              output='screen',
              arguments=['-configuration_directory', config_dir,
                         '-configuration_basename', config],
-             remappings=[('scan', '/scan'), ('imu', '/imu')],
+             remappings=[('scan', scan_topic), ('imu', imu_topic)],
              parameters=[{'use_sim_time': use_sim_time}]),
         # resolution / period are command-line flags of this node, not ROS parameters
         Node(package='cartographer_ros', executable='cartographer_occupancy_grid_node',
