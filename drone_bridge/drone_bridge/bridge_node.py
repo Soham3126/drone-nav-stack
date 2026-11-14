@@ -89,7 +89,7 @@ class BridgeNode(Node):
         self.hold_target = None
         self.cmd_busy = threading.Lock()
 
-        self.link = MavLink(self.url, self.on_mav, lambda s: self.get_logger().info(s))
+        self.link = MavLink(self.url, self.on_mav, lambda s: self.get_logger().info(s), on_connect=self.on_connect)
         self.runner = CommandRunner(self.link)
 
         g_timers = MutuallyExclusiveCallbackGroup()
@@ -118,6 +118,15 @@ class BridgeNode(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     # ------------------------------------------------------------------ MAVLink input
+    def on_connect(self, n):
+        """A (re)connected autopilot may have rebooted: forget everything it told us before."""
+        with self.lock:
+            self.st.update(mode='', custom_mode=-1, armed=False, ekf_flags=0, origin_set=False,
+                           height=float('nan'), rf_raw=None, lpos=None, att=None)
+            self.offset = OffsetEstimator(0.1)
+        self.following = False
+        self.hold_target = None
+
     def on_mav(self, m, t_mono):
         t = m.get_type()
         self.rx_counts[t] = self.rx_counts.get(t, 0) + 1
@@ -263,6 +272,8 @@ class BridgeNode(Node):
         s.header.stamp = self.get_clock().now().to_msg()
         s.header.frame_id = self.map_frame
         s.fc_connected = self.link.connected
+        if not s.fc_connected:          # nothing below is current without a link
+            st.update(armed=False, ekf_flags=0, mode='', height=float('nan'), lpos=None)
         s.mode = st['mode']
         s.armed = st['armed']
         s.ekf_position_ok = (st['ekf_flags'] & EKF_NEEDED) == EKF_NEEDED and not (st['ekf_flags'] & M.EKF_CONST_POS_MODE)

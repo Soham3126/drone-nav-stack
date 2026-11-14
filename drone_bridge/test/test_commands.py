@@ -128,3 +128,9 @@ def test_bad_commands():
         command_spec('fly_to_moon')
     with pytest.raises(ValueError):
         command_spec('takeoff', 0)
+
+
+def test_refusal_text_arriving_after_ack_is_kept():
+    r, _, _ = make(lambda c, p, n: [(0.1, ack(c, result=4)), (0.3, Msg('STATUSTEXT', text='Arm: Throttle too high'))])
+    ok, msg = r.run('arm')
+    assert not ok and 'Throttle too high' in msg

@@ -89,7 +89,7 @@ def main():
         res.update(status_mode=st.mode, status_armed=st.armed, status_height_m=round(st.height_m, 3),
                    status_origin_set=st.origin_set, status_ekf_position_ok=st.ekf_position_ok,
                    frame_offset_m=round(st.frame_offset_m, 4), frame_offset_deg=round(st.frame_offset_deg, 3))
-        good = mode_ok and not st.armed and 0.0 <= st.height_m < 0.5
+        good = mode_ok and not st.armed and abs(st.height_m) < 0.2
         lines.append(f"{'ok  ' if good else 'FAIL'} status: mode {st.mode}, armed {st.armed}, height {st.height_m:.3f} m "
                      f"(on the ground), origin {st.origin_set}, EKF position {st.ekf_position_ok}, "
                      f"frame offset {st.frame_offset_m * 100:.1f} cm / {st.frame_offset_deg:.2f} deg")

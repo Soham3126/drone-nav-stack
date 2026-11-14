@@ -164,3 +164,18 @@ def test_reconnect_after_autopilot_restart():
     finally:
         link.stop = True
         ap.close()
+
+
+def test_silent_autopilot_counts_as_lost():
+    """Socket still open but no HEARTBEAT: the link is reported lost within quiet_s and reopened."""
+    ap = FakeAutopilot()
+    link = MavLink(f'tcp:127.0.0.1:{ap.port}', lambda m, t: None, lambda s: None, quiet_s=1.0)
+    try:
+        assert wait(lambda: link.connected)
+        ap.stop = True                      # stops sending (and serving) but does not close the socket at once
+        t0 = time.monotonic()
+        assert wait(lambda: not link.connected, 4)
+        assert time.monotonic() - t0 < 2.5
+    finally:
+        link.stop = True
+        ap.close()

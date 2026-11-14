@@ -43,12 +43,13 @@ def command_spec(name, value=0.0):
 
 
 class CommandRunner:
-    def __init__(self, link, ack_timeout=3.0, tries=3, clock=time.monotonic, on_message=None):
+    def __init__(self, link, ack_timeout=3.0, tries=3, clock=time.monotonic, on_message=None, text_grace=0.5):
         self.link = link
         self.ack_timeout = ack_timeout
         self.tries = tries
         self.clock = clock
         self.on_message = on_message      # every message seen while waiting is also passed on
+        self.text_grace = text_grace      # after a refusal, STATUSTEXT may still follow the ACK
 
     def _recv(self, deadline):
         left = deadline - self.clock()
@@ -83,6 +84,11 @@ class CommandRunner:
                 continue
             if ack.result != MAV_RESULT_ACCEPTED:
                 why = RESULT_NAMES.get(ack.result, str(ack.result))
+                grace = self.clock() + self.text_grace
+                while self.clock() < grace:
+                    m = self._recv(grace)
+                    if m is not None and m.get_type() == 'STATUSTEXT':
+                        texts.append(str(m.text).strip())
                 return False, self._msg(f'{name} refused: {why}', texts)
             if confirm is None:
                 return True, self._msg(f'{name} accepted', texts)

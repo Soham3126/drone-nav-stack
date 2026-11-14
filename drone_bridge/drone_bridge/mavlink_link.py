@@ -1,8 +1,9 @@
 """MAVLink connection for the bridge: reader thread, reconnect, send lock (guidebook 2.9, test B1).
 No ROS here, so it can be tested against a fake autopilot (test_mavlink_link.py).
 
-It accepts messages from the autopilot only (system 1, component 1). If nothing arrives for `quiet_s`
-seconds the connection is closed and reopened. While `capture` is set, every message is also copied
+It accepts messages from the autopilot only (system 1, component 1). "Connected" means an autopilot
+HEARTBEAT arrived within the last `quiet_s` seconds (guidebook 2.10: "HEARTBEAT 1/1 within the last 2 s");
+when that runs out the socket is closed and reopened, whatever the socket itself reports. While `capture` is set, every message is also copied
 into `cmd_queue` for a running command (CommandRunner reads it through recv()).
 """
 import os
@@ -18,7 +19,7 @@ class MavLink:
     """One MAVLink connection with a reader thread, reconnect and a send lock. Messages for a running
     command are copied into `cmd_queue` while `capture` is set."""
 
-    def __init__(self, url, on_message, log, quiet_s=3.0):
+    def __init__(self, url, on_message, log, quiet_s=2.0, on_connect=None):
         self.url = url
         self.on_message = on_message
         self.log = log
@@ -27,8 +28,10 @@ class MavLink:
         self.send_lock = threading.Lock()
         self.cmd_queue = queue.Queue()
         self.capture = False
+        self.on_connect = on_connect
         self.last_rx = 0.0
-        self.connected = False          # True once a HEARTBEAT from the autopilot has been seen
+        self.last_hb = 0.0
+        self.connected = False          # autopilot HEARTBEAT within the last quiet_s seconds
         self.connect_count = 0
         self.stop = False
         self.fast_none = 0
@@ -74,11 +77,17 @@ class MavLink:
                 time.sleep(0.5)
                 continue
             now = time.monotonic()
+            # link health: checked on every pass, not only when nothing arrived
+            ref = self.last_hb if self.connected else self.last_rx
+            if now - ref > self.quiet_s + (0.0 if self.connected else 3.0):
+                self._close()
+                time.sleep(0.5)
+                continue
             if m is None:
                 # a closed TCP socket returns "nothing" at once instead of after the timeout
                 fast = now - t_call < 0.1
                 self.fast_none = self.fast_none + 1 if fast else 0
-                if now - self.last_rx > self.quiet_s or self.fast_none >= 5:
+                if self.fast_none >= 5:
                     self._close()
                     time.sleep(0.5)
                 continue
@@ -88,10 +97,14 @@ class MavLink:
             if m.get_srcSystem() != 1 or m.get_srcComponent() != 1:   # only the autopilot itself
                 continue
             self.last_rx = now
-            if m.get_type() == 'HEARTBEAT' and not self.connected:
-                self.connected = True
-                self.connect_count += 1
-                self.log(f'autopilot heartbeat on {self.url} (connection {self.connect_count})')
+            if m.get_type() == 'HEARTBEAT':
+                self.last_hb = now
+                if not self.connected:
+                    self.connected = True
+                    self.connect_count += 1
+                    self.log(f'autopilot heartbeat on {self.url} (connection {self.connect_count})')
+                    if self.on_connect:
+                        self.on_connect(self.connect_count)
             if self.capture:
                 self.cmd_queue.put(m)
             self.on_message(m, now)

@@ -18,9 +18,8 @@ def follower(points, lookahead=L):
 def fly_along_x(c, x_from, x_to, y=0.0, step=0.05):
     """Move the drone continuously (as it does at 10 Hz), not by teleporting."""
     x = x_from
-    out = None
     while x < x_to - 1e-9:
-        out = c.update(x, y)
+        c.update(x, y)
         x += step
     return c.update(x_to, y)
 
