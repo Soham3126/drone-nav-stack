@@ -99,14 +99,22 @@ def main():
 
         # 4: restart ArduPilot alone
         print('restarting ArduPilot (SITL) alone ...', flush=True)
+        conns_before = cl.stats[-1][1].get('connections', 0) if cl.stats else 0
+        n_before = len(cl.status)
         stopped = sitl_stop()
         lost = wait_for(lambda: not cl.last().fc_connected, 15)
+        trace = [(round(t - time.time(), 2), m.fc_connected) for t, m in cl.status[n_before:]]
+        res['connected_trace_after_stop'] = [x for i, x in enumerate(trace) if i == 0 or x[1] != trace[i - 1][1]]
         sitl_start(a.out)
         spare = spare_heartbeat(120)
         t_back = time.time()
         rec = wait_for(lambda: cl.last().fc_connected, 30, period=0.05)
         reconnect_s = time.time() - t_back if rec else float('inf')
-        res.update(sitl_stopped=stopped, link_loss_seen=lost, reconnect_s=round(reconnect_s, 2))
+        time.sleep(6)                       # one more link_stats window
+        conns_after = cl.stats[-1][1].get('connections', 0) if cl.stats else 0
+        lost = lost or conns_after > conns_before     # a new connection number also proves the loss
+        res.update(sitl_stopped=stopped, link_loss_seen=lost, reconnect_s=round(reconnect_s, 2),
+                   connections_before=conns_before, connections_after=conns_after)
         res['link_stats_last'] = cl.stats[-1][1] if cl.stats else None
         good = lost and reconnect_s <= 5.0
         lines.append(f"{'ok  ' if good else 'FAIL'} reconnect {reconnect_s:.2f} s after ArduPilot was back "

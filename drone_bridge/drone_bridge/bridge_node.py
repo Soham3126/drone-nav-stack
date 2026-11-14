@@ -32,6 +32,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup  # noqa: E402
 from rclpy.executors import MultiThreadedExecutor  # noqa: E402
 from rclpy.node import Node  # noqa: E402
 from rclpy.qos import qos_profile_sensor_data  # noqa: E402
+from sensor_msgs.msg import LaserScan  # noqa: E402
 from std_msgs.msg import String, UInt8  # noqa: E402
 from tf2_ros import Buffer, TransformListener  # noqa: E402
 
@@ -71,6 +72,7 @@ class BridgeNode(Node):
         self.origin_lon = P('origin_lon', 149.165237).value
         self.origin_alt = P('origin_alt_m', 584.0).value
         self.takeoff_tol = P('takeoff_tolerance_m', 0.1).value
+        self.rf_topic = P('rangefinder_topic', '').value          # simulation only: downward beam -> DISTANCE_SENSOR
 
         self.lock = threading.Lock()
         self.st = dict(mode='', custom_mode=-1, armed=False, ekf_flags=0, origin_set=False, height=float('nan'),
@@ -102,6 +104,8 @@ class BridgeNode(Node):
         if self.reset_topic:
             self.create_subscription(UInt8, self.reset_topic, self.on_reset, 10)
         self.create_subscription(Path, '/bridge/follow_path', self.on_path, 10)
+        if self.rf_topic:
+            self.create_subscription(LaserScan, self.rf_topic, self.on_range, qos_profile_sensor_data)
         self.pub_status = self.create_publisher(BridgeStatus, '/bridge/status', 10)
         self.pub_stats = self.create_publisher(String, '/bridge/link_stats', 10)
         self.create_service(FlightCommand, '/bridge/command', self.on_command, callback_group=g_srv)
@@ -178,6 +182,18 @@ class BridgeNode(Node):
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         with self.lock:
             self.pose = (stamp, p.x, p.y, p.z, r, pi, y)
+
+    def on_range(self, msg):
+        """Simulation stand-in for a rangefinder wired to the flight controller: forward it as DISTANCE_SENSOR."""
+        if not msg.ranges or not self.link.connected:
+            return
+        r = msg.ranges[0]
+        lo, hi = int(msg.range_min * 100), int(msg.range_max * 100)
+        if math.isnan(r):
+            return
+        cm = hi + 1 if math.isinf(r) or r > msg.range_max else max(0, int(round(r * 100)))
+        self.link.send('distance_sensor_send', int(time.monotonic() * 1000) & 0xFFFFFFFF, lo, hi, cm,
+                       M.MAV_DISTANCE_SENSOR_LASER, 0, M.MAV_SENSOR_ROTATION_PITCH_270, 0)
 
     def on_reset(self, msg):
         self.reset_counter = int(msg.data) % 256

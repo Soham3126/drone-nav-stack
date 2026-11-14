@@ -41,8 +41,21 @@ def happy_path(cl, log):
                 f"EKF height {cl.stats[-1][1].get('ekf_height_m')} m")
         return good
 
+    def arm_when_ready(limit=60):
+        """ArduPilot refuses to arm while its own pre-flight checks settle after a (re)start
+        ('Accels inconsistent', 'Battery unhealthy' ...). The book's 'FC ready' check waits for that;
+        here: retry every 5 s for up to `limit` s and record how many tries it took."""
+        t0 = time.time()
+        while True:
+            if step('arm', expect=lambda s: s.armed):
+                return True
+            if time.time() - t0 > limit:
+                return False
+            time.sleep(5)
+            step('guided', expect=lambda s: s.mode == 'GUIDED')
+
     good = (step('guided', expect=lambda s: s.mode == 'GUIDED')
-            and step('arm', expect=lambda s: s.armed)
+            and arm_when_ready()
             and step('takeoff', 1.1, expect=lambda s: abs(s.height_m - 1.1) <= 0.1))
     if good:
         time.sleep(5)

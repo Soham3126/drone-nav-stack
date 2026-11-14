@@ -78,7 +78,7 @@ def bridge_actions(profile, mangle):
     """The bridge, fed by ground truth (truth profile, optionally through pose_mangler) or by
     Cartographer's TF (slam, full)."""
     acts = []
-    bp = {'use_sim_time': True}
+    bp = {'use_sim_time': True, 'rangefinder_topic': '/range_down'}
     if profile == 'truth':
         bp.update(pose_source='topic', pose_topic='/truth/pose')
         if mangle and mangle != 'none':

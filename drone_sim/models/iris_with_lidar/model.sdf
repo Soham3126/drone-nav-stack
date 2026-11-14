@@ -23,6 +23,21 @@
           <noise><type>gaussian</type><mean>0</mean><stddev>0.02</stddev></noise>   <!-- RPLIDAR C1: +-30 mm class accuracy -->
         </lidar>
       </sensor>
+      <!-- Downward rangefinder, stand-in for the MTF-01P's ToF (BOM): one beam, 0.02-8 m, 20 Hz.
+           1.5708 pitch turns the beam from +x to straight down; it sits 5 cm below base_link. -->
+      <sensor name="range_down" type="gpu_lidar">
+        <pose>0 0 -0.17 0 1.5708 0</pose>
+        <gz_frame_id>range_down</gz_frame_id>
+        <topic>range_down</topic>
+        <update_rate>20</update_rate>
+        <always_on>1</always_on>
+        <lidar>
+          <scan><horizontal><samples>1</samples><resolution>1</resolution>
+             <min_angle>0</min_angle><max_angle>0</max_angle></horizontal></scan>
+          <range><min>0.02</min><max>8.0</max><resolution>0.001</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.005</stddev></noise>
+        </lidar>
+      </sensor>
       <sensor name="imu_carto" type="imu">
         <gz_frame_id>imu_link</gz_frame_id>
         <topic>imu</topic>

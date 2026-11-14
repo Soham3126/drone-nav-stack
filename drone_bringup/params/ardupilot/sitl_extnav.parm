@@ -14,3 +14,5 @@ COMPASS_USE     0
 COMPASS_USE2    0
 COMPASS_USE3    0
 ARMING_SKIPCHK  8         # skip GPS arming checks (confirm bit 3 = GPS before use, test B2)
+RNGFND1_TYPE    10        # MAVLink: DISTANCE_SENSOR from the bridge (Gazebo downward beam, stands in for the MTF-01P ToF).
+RNGFND1_ORIENT  25        # down.  gazebo-iris's analog sonar reads 0 and SITL type 100 has no data with the JSON model.
