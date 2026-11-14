@@ -28,6 +28,7 @@ class BridgeClient(Node):
         self.stats = []           # (t_wall, dict)
         self.truth_z = float('nan')   # Gazebo ground-truth height of the body (m, world frame)
         self.truth_z0 = None          # the same at the first sample (on the ground)
+        self.truth = []               # (t_wall, x, y, z) ground truth, world frame
         self.create_subscription(Odometry, '/ground_truth/odom', self.cb_truth, qos_profile_sensor_data)
         self.create_subscription(BridgeStatus, '/bridge/status', self.cb_status, 50)
         self.create_subscription(String, '/bridge/link_stats', self.cb_stats, 10)
@@ -38,7 +39,12 @@ class BridgeClient(Node):
             self.status.append((time.time(), m))
 
     def cb_truth(self, m):
-        z = m.pose.pose.position.z
+        p = m.pose.pose.position
+        z = p.z
+        with self.lock:
+            self.truth.append((time.time(), p.x, p.y, p.z))
+            if len(self.truth) > 200000:
+                del self.truth[:100000]
         if self.truth_z0 is None:
             self.truth_z0 = z
         self.truth_z = z
@@ -99,6 +105,24 @@ def wait_for(cond, timeout, period=0.2):
             return True
         time.sleep(period)
     return False
+
+
+def set_param(name, value, timeout=10.0):
+    """Set an ArduPilot parameter through the spare port and read it back. Returns the value read."""
+    c = spare_heartbeat(30)
+    if c is None:
+        return None
+    try:
+        for _ in range(3):
+            c.mav.param_set_send(1, 1, name.encode(), float(value), mavutil.mavlink.MAV_PARAM_TYPE_REAL32)
+            m = c.recv_match(type='PARAM_VALUE', blocking=True, timeout=timeout / 3)
+            while m is not None and m.param_id.rstrip('\x00') != name:
+                m = c.recv_match(type='PARAM_VALUE', blocking=True, timeout=timeout / 3)
+            if m is not None:
+                return m.param_value
+        return None
+    finally:
+        c.close()
 
 
 def gcs_heartbeat(conn):

@@ -1,0 +1,4 @@
+# B3 case: pose delay 0.0 s, noise 0.0 m (VISO_DELAY_MS 50)
+delay: 0.0
+noise: 0.0
+seed: 1
