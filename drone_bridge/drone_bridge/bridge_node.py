@@ -74,6 +74,7 @@ class BridgeNode(Node):
 
         self.lock = threading.Lock()
         self.st = dict(mode='', custom_mode=-1, armed=False, ekf_flags=0, origin_set=False, height=float('nan'),
+                       rf_raw=None,
                        battery=float('nan'), lpos=None, att=None, lpos_t=0.0, status_texts=[])
         self.rx_counts = {}
         self.rx_window_start = time.monotonic()
@@ -135,7 +136,10 @@ class BridgeNode(Node):
             elif t == 'EKF_STATUS_REPORT':
                 st['ekf_flags'] = m.flags
             elif t == 'DISTANCE_SENSOR':
-                st['height'] = m.current_distance / 100.0
+                # a reading at or outside the sensor's limits (e.g. 0 on the ground) is not a height
+                st['rf_raw'] = (m.current_distance, m.min_distance, m.max_distance, m.orientation, m.id)
+                valid = m.min_distance < m.current_distance < m.max_distance
+                st['height'] = m.current_distance / 100.0 if valid else float('nan')
             elif t == 'SYS_STATUS':
                 st['battery'] = float(m.battery_remaining)
             elif t == 'GPS_GLOBAL_ORIGIN':
@@ -263,7 +267,7 @@ class BridgeNode(Node):
         s.armed = st['armed']
         s.ekf_position_ok = (st['ekf_flags'] & EKF_NEEDED) == EKF_NEEDED and not (st['ekf_flags'] & M.EKF_CONST_POS_MODE)
         s.origin_set = st['origin_set']
-        s.height_m = float(st['height'])
+        s.height_m = float(self._height(st))
         s.battery_percent = float(st['battery'])
         s.frame_offset_m = float(off_m)
         s.frame_offset_deg = float(off_deg)
@@ -277,7 +281,11 @@ class BridgeNode(Node):
         dt = now - self.rx_window_start
         counts, self.rx_counts, self.rx_window_start = self.rx_counts, {}, now
         rates = {k: round(v / dt, 2) for k, v in sorted(counts.items())}
+        with self.lock:
+            rf, lp = self.st['rf_raw'], self.st['lpos']
         self.pub_stats.publish(String(data=json.dumps({'window_s': round(dt, 2), 'rx_hz': rates,
+                                                       'rangefinder_cm_min_max_orient_id': rf,
+                                                       'ekf_height_m': round(-lp[2], 3) if lp else None,
                                                        'connected': self.link.connected,
                                                        'connections': self.link.connect_count})))
 
@@ -344,13 +352,18 @@ class BridgeNode(Node):
         self._send_target(*self.hold_target)
         return True, f'holding at n={lp[0]:.2f} e={lp[1]:.2f}'
 
+    @staticmethod
+    def _height(st):
+        """Rangefinder height when it is in range, otherwise the EKF's height (-z of LOCAL_POSITION_NED)."""
+        if not math.isnan(st['height']):
+            return st['height']
+        return -st['lpos'][2] if st['lpos'] else float('nan')
+
     def _wait_height(self, h, timeout):
         t0 = time.monotonic()
         while time.monotonic() - t0 < timeout:
             with self.lock:
-                hr = self.st['height']
-                lp = self.st['lpos']
-            cur = hr if not math.isnan(hr) else (-lp[2] if lp else float('nan'))
+                cur = self._height(self.st)
             if abs(cur - h) <= self.takeoff_tol:
                 return True, f'height {cur:.2f} m reached in {time.monotonic() - t0:.1f} s'
             time.sleep(0.1)

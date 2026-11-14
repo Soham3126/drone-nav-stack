@@ -18,7 +18,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from b_common import Client, save, sitl_start, sitl_stop, wait_for  # noqa: E402
+from b_common import Client, finish, save, sitl_start, sitl_stop, wait_for  # noqa: E402
 
 REPEATS = 3
 
@@ -31,10 +31,14 @@ def happy_path(cl, log):
         time.sleep(0.5)
         st = cl.last()
         good = ok and (expect is None or expect(st))
+        th = cl.truth_height()
         steps.append(dict(cmd=name, ok=ok, state_ok=good, seconds=round(dt, 2), message=msg,
-                          mode=st.mode, armed=st.armed, height=round(st.height_m, 3)))
+                          mode=st.mode, armed=st.armed, height=round(st.height_m, 3), truth_height=round(th, 3)))
         log(f"   {name:8s} {'ok  ' if good else 'FAIL'} {dt:5.1f} s  mode {st.mode:8s} armed {st.armed!s:5s} "
-            f"height {st.height_m:.2f}  | {msg}")
+            f"height {st.height_m:.2f} (true {th:.2f})  | {msg}")
+        if cl.stats:
+            log(f"            rangefinder {cl.stats[-1][1].get('rangefinder_cm_min_max_orient_id')}, "
+                f"EKF height {cl.stats[-1][1].get('ekf_height_m')} m")
         return good
 
     good = (step('guided', expect=lambda s: s.mode == 'GUIDED')
@@ -72,7 +76,8 @@ def main():
             log(f" case 1 happy path: {'ok' if ok1 else 'FAIL'}")
 
             # case 2 of the book's list order is the refusal; we need ArduPilot down first, so: timeout case
-            sitl_stop()
+            if not sitl_stop():
+                log('   could not stop ArduPilot')
             time.sleep(0.5)
             okc, msg, dt = cl.command('arm', timeout=30)
             ok3 = (not okc) and dt <= 9.5
@@ -106,4 +111,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    finish(main())

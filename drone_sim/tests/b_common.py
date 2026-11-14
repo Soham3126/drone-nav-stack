@@ -10,9 +10,11 @@ os.environ.setdefault('MAVLINK20', '1')
 import rclpy  # noqa: E402
 from drone_interfaces.msg import BridgeStatus  # noqa: E402
 from drone_interfaces.srv import FlightCommand  # noqa: E402
+from nav_msgs.msg import Odometry  # noqa: E402
 from pymavlink import mavutil  # noqa: E402
 from rclpy.executors import SingleThreadedExecutor  # noqa: E402
 from rclpy.node import Node  # noqa: E402
+from rclpy.qos import qos_profile_sensor_data  # noqa: E402
 from std_msgs.msg import String  # noqa: E402
 
 SPARE_URL = 'tcp:127.0.0.1:5763'      # SITL SERIAL2: free in truth/slam profiles (no scripted flight)
@@ -24,6 +26,9 @@ class BridgeClient(Node):
         self.lock = threading.Lock()
         self.status = []          # (t_wall, BridgeStatus)
         self.stats = []           # (t_wall, dict)
+        self.truth_z = float('nan')   # Gazebo ground-truth height of the body (m, world frame)
+        self.truth_z0 = None          # the same at the first sample (on the ground)
+        self.create_subscription(Odometry, '/ground_truth/odom', self.cb_truth, qos_profile_sensor_data)
         self.create_subscription(BridgeStatus, '/bridge/status', self.cb_status, 50)
         self.create_subscription(String, '/bridge/link_stats', self.cb_stats, 10)
         self.cli = self.create_client(FlightCommand, '/bridge/command')
@@ -31,6 +36,16 @@ class BridgeClient(Node):
     def cb_status(self, m):
         with self.lock:
             self.status.append((time.time(), m))
+
+    def cb_truth(self, m):
+        z = m.pose.pose.position.z
+        if self.truth_z0 is None:
+            self.truth_z0 = z
+        self.truth_z = z
+
+    def truth_height(self):
+        """Ground-truth height above the take-off point (m)."""
+        return self.truth_z - self.truth_z0 if self.truth_z0 is not None else float('nan')
 
     def cb_stats(self, m):
         with self.lock:
@@ -69,6 +84,7 @@ class Client:
     def __exit__(self, *exc):
         try:
             self.ex.shutdown(timeout_sec=2.0)
+            self.th.join(timeout=3.0)
             self.node.destroy_node()
         except Exception:  # noqa: BLE001
             pass
@@ -85,12 +101,21 @@ def wait_for(cond, timeout, period=0.2):
     return False
 
 
+def gcs_heartbeat(conn):
+    """ArduPilot forwards messages only to links it has heard from: say hello as a ground station."""
+    try:
+        conn.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS, mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def spare_heartbeat(timeout=60.0):
     """Connect to SITL's spare port; returns the connection once an autopilot HEARTBEAT is seen, else None."""
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
             c = mavutil.mavlink_connection(SPARE_URL, source_system=250, source_component=190, retries=0)
+            gcs_heartbeat(c)
             m = c.recv_match(type='HEARTBEAT', blocking=True, timeout=2)
             while m is not None and m.get_srcComponent() != 1:
                 m = c.recv_match(type='HEARTBEAT', blocking=True, timeout=2)
@@ -102,17 +127,27 @@ def spare_heartbeat(timeout=60.0):
     return None
 
 
+def _sitl_running():
+    return subprocess.run(['pgrep', '-f', 'arducopter'], capture_output=True).returncode == 0
+
+
 def sitl_stop():
-    """Ctrl+C in the SITL window (as the guidebook does), then wait for the window to close."""
+    """Stop ArduPilot alone: Ctrl+C in its window (as the guidebook does). MAVProxy ignores Ctrl+C and
+    the arducopter process outlives its tmux window, so then stop the processes themselves, as
+    sim_down.sh does. Returns True when arducopter is gone."""
     subprocess.run(['tmux', 'send-keys', '-t', 'sim:sitl', 'C-c'], check=False)
-    for _ in range(40):
-        out = subprocess.run(['tmux', 'list-windows', '-t', 'sim', '-F', '#W'], capture_output=True, text=True).stdout
-        if 'sitl' not in out.split():
-            return True
-        time.sleep(0.5)
+    time.sleep(1)
+    for pat in ('arducopter', 'mavproxy', 'sim_vehicle'):
+        subprocess.run(['pkill', '-f', pat], check=False)
     subprocess.run(['tmux', 'kill-window', '-t', 'sim:sitl'], check=False)
+    for _ in range(40):
+        if not _sitl_running():
+            time.sleep(1)                       # let the TCP ports close
+            return True
+        time.sleep(0.25)
+    subprocess.run(['pkill', '-9', '-f', 'arducopter'], check=False)
     time.sleep(2)
-    return False
+    return not _sitl_running()
 
 
 def sitl_start(out_dir):
@@ -130,3 +165,11 @@ def save(out_dir, test_id, result, ok, lines):
     for ln in lines:
         print(ln)
     print(f'{test_id}: {"PASS" if ok else "FAIL"}', flush=True)
+
+
+def finish(code):
+    """Leave without Python's slow, crash-prone teardown of ROS threads (results are already saved)."""
+    import sys
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)

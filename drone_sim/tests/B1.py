@@ -18,7 +18,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from b_common import Client, save, sitl_start, sitl_stop, spare_heartbeat, wait_for  # noqa: E402
+from b_common import Client, finish, gcs_heartbeat, save, sitl_start, sitl_stop, spare_heartbeat, wait_for  # noqa: E402
 
 REQUESTED = {'HEARTBEAT': 1, 'LOCAL_POSITION_NED': 30, 'ATTITUDE': 30, 'EKF_STATUS_REPORT': 2,
              'DISTANCE_SENSOR': 10, 'SYS_STATUS': 2}
@@ -46,7 +46,11 @@ def main():
         n_stats0 = len(cl.stats)
         t0 = time.time()
         hb_bridge, ap_modes = 0, set()
+        t_hb = 0.0
         while time.time() - t0 < WINDOW_S:
+            if spare and time.time() - t_hb >= 1.0:
+                gcs_heartbeat(spare)
+                t_hb = time.time()
             m = spare.recv_match(type='HEARTBEAT', blocking=True, timeout=1) if spare else None
             if m is None:
                 continue
@@ -77,6 +81,9 @@ def main():
 
         # 3: status content
         st = cl.last()
+        if cl.stats:
+            lines.append(f"     rangefinder/EKF height detail: {cl.stats[-1][1].get('rangefinder_cm_min_max_orient_id')}"
+                         f" / {cl.stats[-1][1].get('ekf_height_m')} m")
         mode_ok = st.mode != '' and (not ap_modes or any(st.mode == {0: 'STABILIZE', 4: 'GUIDED', 5: 'LOITER', 9: 'LAND'}
                                                            .get(cm, str(cm)) for cm in ap_modes))
         res.update(status_mode=st.mode, status_armed=st.armed, status_height_m=round(st.height_m, 3),
@@ -92,17 +99,18 @@ def main():
 
         # 4: restart ArduPilot alone
         print('restarting ArduPilot (SITL) alone ...', flush=True)
-        sitl_stop()
+        stopped = sitl_stop()
         lost = wait_for(lambda: not cl.last().fc_connected, 15)
         sitl_start(a.out)
         spare = spare_heartbeat(120)
         t_back = time.time()
         rec = wait_for(lambda: cl.last().fc_connected, 30, period=0.05)
         reconnect_s = time.time() - t_back if rec else float('inf')
-        res.update(link_loss_seen=lost, reconnect_s=round(reconnect_s, 2))
+        res.update(sitl_stopped=stopped, link_loss_seen=lost, reconnect_s=round(reconnect_s, 2))
+        res['link_stats_last'] = cl.stats[-1][1] if cl.stats else None
         good = lost and reconnect_s <= 5.0
         lines.append(f"{'ok  ' if good else 'FAIL'} reconnect {reconnect_s:.2f} s after ArduPilot was back "
-                     f"(needs <= 5 s; loss seen: {lost})")
+                     f"(needs <= 5 s; ArduPilot stopped: {stopped}, loss seen: {lost})")
         ok &= good
         if spare:
             spare.close()
@@ -112,4 +120,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    finish(main())
