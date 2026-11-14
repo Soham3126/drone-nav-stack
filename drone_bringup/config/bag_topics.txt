@@ -1,2 +1,2 @@
 /scan /imu /imu_raw /tf /tf_static /map /clock /ground_truth/odom /truth/pose /frontiers
-/bridge/follow_path /bridge/status /mission/state /global_costmap/costmap
+/bridge/follow_path /bridge/status /bridge/link_stats /pose_in /mission/state /global_costmap/costmap

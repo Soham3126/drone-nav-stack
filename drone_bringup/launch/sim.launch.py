@@ -6,11 +6,13 @@ Gazebo and ArduPilot SITL are started separately by scripts/sim_up.sh.
 
 Profile   ROS nodes
 gps       Gazebo bridge, robot_state_publisher, truth relay, Cartographer (slam:=true)
-truth     + bridge (pose from /truth/pose)              <- needs drone_bridge (stage 3)
-slam      + bridge (pose from Cartographer TF)          <- needs drone_bridge (stage 3)
+truth     + bridge (pose from /truth/pose, or through pose_mangler when mangle:=<yaml>)   GPS off
+slam      + bridge (pose from Cartographer TF)                                          GPS off
 full      + planner, frontier server, mission brain     <- needs stages 3-4
 """
 import os
+
+import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -19,7 +21,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-READY = {'gps'}
+READY = {'gps', 'truth', 'slam'}
 ALL = ('gps', 'truth', 'slam', 'full')
 
 
@@ -62,12 +64,39 @@ def setup(context):
                                 parameters=[{'type': typ, 'input': src, 'output': src + '_gated',
                                              'use_sim_time': True}]))
         slam_args.update(scan_topic='/scan_gated', imu_topic='/imu_gated')
+    if profile in ('truth', 'slam', 'full'):
+        actions += bridge_actions(profile, LaunchConfiguration('mangle').perform(context))
     if slam:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(
                 get_package_share_directory('drone_slam'), 'launch', 'slam.launch.py')),
             launch_arguments=slam_args.items()))
     return actions
+
+
+def bridge_actions(profile, mangle):
+    """The bridge, fed by ground truth (truth profile, optionally through pose_mangler) or by
+    Cartographer's TF (slam, full)."""
+    acts = []
+    bp = {'use_sim_time': True}
+    if profile == 'truth':
+        bp.update(pose_source='topic', pose_topic='/truth/pose')
+        if mangle and mangle != 'none':
+            with open(os.path.expanduser(mangle)) as f:
+                mp = yaml.safe_load(f) or {}
+            # ROS parameters are typed: write 0 as 0.0 for the float ones, whatever the yaml says
+            mp = {k: (float(v) if isinstance(v, int) and not isinstance(v, bool) and k != 'seed' else v)
+                  for k, v in mp.items()}
+            mp.update(input='/truth/pose', output='/pose_in', use_sim_time=True)
+            acts.append(Node(package='drone_sim', executable='pose_mangler.py', name='pose_mangler',
+                             output='screen', parameters=[mp]))
+            bp.update(pose_topic='/pose_in', reset_topic='/pose_mangler/reset_counter')
+            acts.append(LogInfo(msg=f'[sim.launch] pose_mangler: {mp}'))
+    else:
+        bp.update(pose_source='tf')
+    acts.append(Node(package='drone_bridge', executable='bridge_node', name='bridge', output='screen',
+                     parameters=[bp]))
+    return acts
 
 
 def generate_launch_description():

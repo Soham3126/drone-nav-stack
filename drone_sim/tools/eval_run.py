@@ -548,6 +548,9 @@ def evaluate(run_dir, world=None):
     meta = read_meta_txt(run_dir)
     world = world or meta.get('world')
     test_id = meta.get('test', '')
+    if test_id.startswith('B'):   # workstream B tests judge themselves (their own result.json / report)
+        print(f'{test_id}: judged by its own procedure; see result.json in {run_dir}')
+        return 0
     data = extract(run_dir, keep_maps=test_id.startswith('A1.7'))
     m, series = compute(data, world, run_dir)
     if test_id == 'A1.7':

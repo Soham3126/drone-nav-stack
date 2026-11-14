@@ -1,0 +1,142 @@
+"""Carrot follower (guidebook 2.9). Pure maths, no ROS. Tested by test_carrot.py (B0).
+
+Every 0.1 s:
+ 1. find the path point closest to the drone, searching FORWARD from the last one (never backwards);
+ 2. walk forward along the path by the lookahead L to get the carrot;
+ 3. (caller) converts the carrot to the FC frame and sends it as a position target;
+ 4. at the path's end the carrot stays on the final point; "arrived" = within 0.15 m and slower than
+    0.1 m/s for 1 s.
+At a 90 deg corner the line drone->carrot cuts inside the path by at most 0.354 * L.
+
+Coordinates are 2D (x, y) in the map frame. The search window keeps the closest-point search from
+jumping to a later part of the path that happens to pass nearby (U-turns, loops).
+"""
+import math
+
+
+class CarrotFollower:
+    def __init__(self, lookahead=0.5, arrive_radius=0.15, arrive_speed=0.1, arrive_time=1.0,
+                 search_window=None):
+        self.L = float(lookahead)
+        self.arrive_radius = arrive_radius
+        self.arrive_speed = arrive_speed
+        self.arrive_time = arrive_time
+        # how far ahead of the current progress (path length, m) the closest-point search may look
+        self.window = search_window if search_window is not None else 2.0 * self.L + 0.5
+        self.clear()
+
+    # ---------------------------------------------------------------- path handling
+    def clear(self):
+        self.pts = []
+        self.cum = []
+        self.s = 0.0           # progress along the path (m), never decreases
+        self.seg = 0           # index of the segment containing s
+        self._slow_since = None
+        self.arrived = False
+
+    def set_path(self, points):
+        """points: iterable of (x, y). Consecutive duplicates are dropped."""
+        self.clear()
+        for p in points:
+            p = (float(p[0]), float(p[1]))
+            if not self.pts or math.hypot(p[0] - self.pts[-1][0], p[1] - self.pts[-1][1]) > 1e-6:
+                self.pts.append(p)
+        self.cum = [0.0]
+        for a, b in zip(self.pts, self.pts[1:]):
+            self.cum.append(self.cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+
+    @property
+    def length(self):
+        return self.cum[-1] if self.cum else 0.0
+
+    @property
+    def active(self):
+        return bool(self.pts)
+
+    def point_at(self, s):
+        """Point at path length s (clamped to the path)."""
+        if not self.pts:
+            raise ValueError('no path')
+        if len(self.pts) == 1 or s <= 0.0:
+            return self.pts[0]
+        if s >= self.length:
+            return self.pts[-1]
+        i = self._segment_of(s)
+        a, b = self.pts[i], self.pts[i + 1]
+        seg_len = self.cum[i + 1] - self.cum[i]
+        t = (s - self.cum[i]) / seg_len
+        return a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])
+
+    def _segment_of(self, s):
+        i = self.seg
+        while i + 1 < len(self.cum) - 1 and self.cum[i + 1] <= s:
+            i += 1
+        while i > 0 and self.cum[i] > s:
+            i -= 1
+        return i
+
+    # ---------------------------------------------------------------- main step
+    def closest_progress(self, x, y):
+        """Path length of the point closest to (x, y), searched forward from the current progress
+        and at most `window` metres ahead. Never returns less than the current progress."""
+        if len(self.pts) < 2:
+            return 0.0
+        best_d, best_s = float('inf'), self.s
+        limit = self.s + self.window
+        i = self.seg
+        while i < len(self.pts) - 1 and self.cum[i] <= limit:
+            a, b = self.pts[i], self.pts[i + 1]
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            seg_len = self.cum[i + 1] - self.cum[i]
+            t = ((x - a[0]) * dx + (y - a[1]) * dy) / (seg_len * seg_len)
+            t = min(1.0, max(0.0, t))
+            s = self.cum[i] + t * seg_len
+            if s < self.s:                       # never search backwards
+                s = self.s
+                px, py = self.point_at(s)
+            else:
+                px, py = a[0] + t * dx, a[1] + t * dy
+            if s > limit:
+                break
+            d = math.hypot(x - px, y - py)
+            if d < best_d - 1e-12:
+                best_d, best_s = d, s
+            i += 1
+        return max(self.s, best_s)
+
+    def update(self, x, y):
+        """Advance progress for the drone at (x, y); returns the carrot (x, y)."""
+        if not self.pts:
+            raise ValueError('no path')
+        self.s = self.closest_progress(x, y)
+        self.seg = self._segment_of(self.s)
+        return self.point_at(self.s + self.L)
+
+    def distance_to_end(self, x, y):
+        if not self.pts:
+            return 0.0
+        e = self.pts[-1]
+        return math.hypot(x - e[0], y - e[1])
+
+    def check_arrived(self, x, y, speed, t):
+        """Latching 'arrived': within arrive_radius of the end and slower than arrive_speed for arrive_time."""
+        if self.arrived:
+            return True
+        if self.pts and self.distance_to_end(x, y) <= self.arrive_radius and speed < self.arrive_speed:
+            if self._slow_since is None:
+                self._slow_since = t
+            if t - self._slow_since >= self.arrive_time:
+                self.arrived = True
+        else:
+            self._slow_since = None
+        return self.arrived
+
+
+def corner_cut(p, q, corner):
+    """Distance from `corner` to the segment p-q (how far the line drone->carrot cuts inside)."""
+    dx, dy = q[0] - p[0], q[1] - p[1]
+    L2 = dx * dx + dy * dy
+    if L2 == 0:
+        return math.hypot(corner[0] - p[0], corner[1] - p[1])
+    t = min(1.0, max(0.0, ((corner[0] - p[0]) * dx + (corner[1] - p[1]) * dy) / L2))
+    return math.hypot(corner[0] - (p[0] + t * dx), corner[1] - (p[1] + t * dy))

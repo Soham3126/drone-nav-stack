@@ -8,7 +8,7 @@ EK3_SRC1_POSZ   2
 EK3_SRC1_VELZ   0
 EK3_SRC1_YAW    6
 VISO_TYPE       1         # MAVLink
-VISO_DELAY_MS   10        # A1.10: Cartographer pose delay ~5-10 ms; bridge delay added in B9
+VISO_DELAY_MS   10        # A1.10: effective SLAM delay ~5 ms -> 10; final value from B9
 GPS1_TYPE       0
 COMPASS_USE     0
 COMPASS_USE2    0
