@@ -1,0 +1,4 @@
+# regression on all other sign-off flights
+base |
+mcd15_n20 | POSE_GRAPH.constraint_builder.max_constraint_distance = 15. POSE_GRAPH.optimize_every_n_nodes = 20
+mcd6_n20 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20

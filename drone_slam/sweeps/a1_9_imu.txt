@@ -1,0 +1,7 @@
+# heading creep at speed: IMU gravity estimate / IMU use, all on top of mcd6_n20
+mcd6_n20 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20
+g1   | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.imu_gravity_time_constant = 1.
+g3   | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.imu_gravity_time_constant = 3.
+g30  | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.imu_gravity_time_constant = 30.
+noimu | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.use_imu_data = false
+rtc1 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.real_time_correlative_scan_matcher.rotation_delta_cost_weight = 1.

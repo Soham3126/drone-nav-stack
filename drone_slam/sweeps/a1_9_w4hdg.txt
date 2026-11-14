@@ -1,0 +1,9 @@
+# W4 heading creep: loop-closure distance gate vs submap size (all keep search window 0.5 m, min_score 0.75)
+base |
+mcd3 | POSE_GRAPH.constraint_builder.max_constraint_distance = 3.
+mcd6 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6.
+mcd6_n20 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20
+mcd15_n20 | POSE_GRAPH.constraint_builder.max_constraint_distance = 15. POSE_GRAPH.optimize_every_n_nodes = 20
+nrd60_mcd3_n20 | TRAJECTORY_BUILDER_2D.submaps.num_range_data = 60 POSE_GRAPH.constraint_builder.max_constraint_distance = 3. POSE_GRAPH.optimize_every_n_nodes = 20
+rw40 | TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 40.
+mcd6_n20_rw40 | POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20 TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 40.
