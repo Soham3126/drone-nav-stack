@@ -1,0 +1,5 @@
+# B7 synthetic slip: the pose drifts 0.1 m/s along the corridor (map x) for 3 s, started by /pose_mangler/drift_now
+drift_start: -1.0
+drift_duration: 3.0
+drift_vx: 0.1
+drift_vy: 0.0

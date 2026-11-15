@@ -27,7 +27,7 @@ tmux new-session -d -s sim -n gz \
   "bash -ic 'ros_env; gz sim $GZ_ARGS $WORLD.sdf 2>&1 | tee $OUT/gz.log'"
 sleep 5
 # the SITL command is kept in a file so tests can restart ArduPilot alone (B1 step 4, B2)
-printf '%s\n' "ap_env; cd $OUT; $SIMV -v ArduCopter -f gazebo-iris --model JSON -w -N $PARMS 2>&1 | tee -a $OUT/sitl.log" > "$OUT/sitl_cmd.sh"
+printf '%s\n' "ap_env; cd $OUT; $SIMV -v ArduCopter -f gazebo-iris --model JSON -w -N --out=127.0.0.1:14570 $PARMS 2>&1 | tee -a $OUT/sitl.log" > "$OUT/sitl_cmd.sh"
 tmux new-window -t sim -n sitl "bash -ic 'source $OUT/sitl_cmd.sh'"
 sleep 20
 if [ "$PROFILE" = truth ]; then SLAM_DEF=false; else SLAM_DEF=true; fi

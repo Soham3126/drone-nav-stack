@@ -67,12 +67,13 @@ class BridgeNode(Node):
         self.base_frame = P('base_frame', 'base_link').value
         self.pose_rate = P('pose_rate_hz', 30.0).value
         self.flight_height = P('flight_height_m', 1.1).value
-        self.lookahead = P('lookahead_m', 0.5).value
+        self.lookahead = P('lookahead_m', 0.6).value             # B5: 0.6 m with WP_SPD 0.8
         self.origin_lat = P('origin_lat', -35.363262).value       # any fixed point: indoors it only names the origin
         self.origin_lon = P('origin_lon', 149.165237).value
         self.origin_alt = P('origin_alt_m', 584.0).value
         self.takeoff_tol = P('takeoff_tolerance_m', 0.1).value
-        self.rf_topic = P('rangefinder_topic', '').value          # simulation only: downward beam -> DISTANCE_SENSOR
+        self.rf_topic = P('rangefinder_topic', '').value          # unused in simulation now (range_relay.py)
+        self.ground_clearance = P('ground_clearance_m', 0.0).value  # rangefinder reading when landed
 
         self.lock = threading.Lock()
         self.st = dict(mode='', custom_mode=-1, armed=False, ekf_flags=0, origin_set=False, height=float('nan'),
@@ -163,7 +164,7 @@ class BridgeNode(Node):
                 # a reading at or outside the sensor's limits (e.g. 0 on the ground) is not a height
                 st['rf_raw'] = (m.current_distance, m.min_distance, m.max_distance, m.orientation, m.id)
                 valid = m.min_distance < m.current_distance < m.max_distance
-                st['height'] = m.current_distance / 100.0 if valid else float('nan')
+                st['height'] = m.current_distance / 100.0 - self.ground_clearance if valid else float('nan')
             elif t == 'SYS_STATUS':
                 st['battery'] = float(m.battery_remaining)
             elif t == 'GPS_GLOBAL_ORIGIN':

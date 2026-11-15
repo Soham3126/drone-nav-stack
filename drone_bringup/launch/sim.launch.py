@@ -65,7 +65,7 @@ def setup(context):
                                              'use_sim_time': True}]))
         slam_args.update(scan_topic='/scan_gated', imu_topic='/imu_gated')
     if profile in ('truth', 'slam', 'full'):
-        actions += bridge_actions(profile, LaunchConfiguration('mangle').perform(context))
+        actions += bridge_actions(profile, LaunchConfiguration('mangle').perform(context), gate)
     if slam:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(
@@ -74,11 +74,13 @@ def setup(context):
     return actions
 
 
-def bridge_actions(profile, mangle):
-    """The bridge, fed by ground truth (truth profile, optionally through pose_mangler) or by
-    Cartographer's TF (slam, full)."""
-    acts = []
-    bp = {'use_sim_time': True, 'rangefinder_topic': '/range_down'}
+def bridge_actions(profile, mangle, gate=False):
+    """The bridge, fed by ground truth (truth profile, optionally through pose_mangler and/or a pausable
+    pose gate) or by Cartographer's TF (slam, full); plus the rangefinder relay (the simulated MTF-01P,
+    on its own MAVLink link like a sensor wired to the flight controller)."""
+    acts = [Node(package='drone_sim', executable='range_relay.py', name='range_relay', output='screen',
+                 parameters=[{'use_sim_time': True}])]
+    bp = {'use_sim_time': True, 'ground_clearance_m': 0.145}
     if profile == 'truth':
         bp.update(pose_source='topic', pose_topic='/truth/pose')
         if mangle and mangle != 'none':
@@ -92,6 +94,11 @@ def bridge_actions(profile, mangle):
                              output='screen', parameters=[mp]))
             bp.update(pose_topic='/pose_in', reset_topic='/pose_mangler/reset_counter')
             acts.append(LogInfo(msg=f'[sim.launch] pose_mangler: {mp}'))
+        if gate:   # B6: pause only the pose stream
+            acts.append(Node(package='drone_sim', executable='stream_gate.py', name='pose_gate', output='screen',
+                             parameters=[{'type': 'geometry_msgs/msg/PoseStamped', 'input': bp['pose_topic'],
+                                          'output': '/pose_gated', 'use_sim_time': True}]))
+            bp.update(pose_topic='/pose_gated')
     else:
         bp.update(pose_source='tf')
     acts.append(Node(package='drone_bridge', executable='bridge_node', name='bridge', output='screen',

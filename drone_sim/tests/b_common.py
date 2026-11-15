@@ -97,9 +97,11 @@ class BridgeClient(Node):
         ok, msg, _ = self.command('takeoff', height)
         return ok, f'takeoff: {msg}'
 
-    def follow(self, points_map, timeout):
-        """Publish a path (map frame, list of (x, y)) and wait until the bridge reports it arrived.
-        Returns (arrived, seconds, t_start, t_end) in wall time."""
+    def follow_async(self, points_map):
+        """Publish a path (map frame, list of (x, y)) without waiting."""
+        self.pub_path.publish(self._path_msg(points_map))
+
+    def _path_msg(self, points_map):
         msg = Path()
         msg.header.frame_id = 'map'
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -109,6 +111,12 @@ class BridgeClient(Node):
             ps.pose.position.x, ps.pose.position.y = float(x), float(y)
             ps.pose.orientation.w = 1.0
             msg.poses.append(ps)
+        return msg
+
+    def follow(self, points_map, timeout):
+        """Publish a path (map frame, list of (x, y)) and wait until the bridge reports it arrived.
+        Returns (arrived, seconds, t_start, t_end) in wall time."""
+        msg = self._path_msg(points_map)
         t0 = time.time()
         self.pub_path.publish(msg)
         wait_for(lambda: self.last() is not None and not self.last().path_arrived, 3, period=0.05)
@@ -254,6 +262,22 @@ def call_trigger(node, name, timeout=5.0):
     if not cli.wait_for_service(timeout_sec=timeout):
         return False, f'{name} not available'
     fut = cli.call_async(Trigger.Request())
+    t0 = time.time()
+    while not fut.done() and time.time() - t0 < timeout:
+        time.sleep(0.02)
+    if not fut.done():
+        return False, 'no response'
+    return fut.result().success, fut.result().message
+
+
+def call_setbool(node, name, value, timeout=5.0):
+    from std_srvs.srv import SetBool
+    cli = node.create_client(SetBool, name)
+    if not cli.wait_for_service(timeout_sec=timeout):
+        return False, f'{name} not available'
+    req = SetBool.Request()
+    req.data = bool(value)
+    fut = cli.call_async(req)
     t0 = time.time()
     while not fut.done() and time.time() - t0 < timeout:
         time.sleep(0.02)
