@@ -6,7 +6,7 @@ For every world it writes drone_sim/fixtures/<world>/:
   partial.pgm/.yaml   what the LiDAR (360 deg, 10 m) sees from a few viewpoints near the start: walls 100,
                       seen free 0, the rest unknown -> it has real frontiers
   carto.pgm/.yaml     "Cartographer-like": free 0-30, walls 60-95, a slight halo of 31-59 next to walls,
-                      1% random speckle (any value 0-100) in free space; unknown stays unknown
+                      1% random speckle (0-64, below the wall threshold) in free space; unknown stays unknown
   openings.json       the sidecar for partial: every frontier (unknown cells next to seen free cells, grouped),
                       with its size, centre, and whether it is a real opening into free space
   info.json           viewpoints, value counts, the seed
@@ -200,11 +200,14 @@ def carto_map(full, occ, seed):
     # slight blur: free cells touching a wall (8-neighbourhood) get an in-between value
     halo = ndimage.binary_dilation(wall, structure=np.ones((3, 3))) & free
     m[halo] = rng.integers(31, 60, int(halo.sum()))
-    # 1% speckle anywhere in free space, any value
+    # 1% speckle in free space: any value below the wall threshold (0-64). A speckle cell >= 65 in free space is a
+    # false wall, and one false wall cell blocks a 1 m corridor for the 0.54 m drone (first C1 run: with speckle up
+    # to 100, 0.43% of free cells became walls and no path existed on any carto-like map). False walls are a SLAM
+    # fault (workstream A's phantom cells), not something the planner fixture should contain.
     fr, fc = np.nonzero(free)
     k = int(round(0.01 * len(fr)))
     pick = rng.choice(len(fr), k, replace=False)
-    m[fr[pick], fc[pick]] = rng.integers(0, 101, k)
+    m[fr[pick], fc[pick]] = rng.integers(0, 65, k)
     speck = np.zeros_like(free)
     speck[fr[pick], fc[pick]] = True
     return m, halo, speck

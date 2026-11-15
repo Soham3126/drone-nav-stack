@@ -94,21 +94,25 @@ def build_cases():
             exp = 'fail' if gap == '045' else ('success' if fx == 'full' or gap == '090' else 'record')
             cases.append(dict(id=f'gap_{gap}_{fx}', world='w7_gaps', fixture=fx, start=s, goal=(x, 2.0),
                               expect=exp, judge='reach_goal'))
-    # 3. goal in unknown space 0.3 m from known free (partial fixtures)
+    # 3. goal in unknown space 0.3 m from known free (partial fixtures). The known free space next to the goal must
+    # be space the drone can reach from the start in the partial map (not free space only seen through a gap).
     for w in ('w2_turns_junctions', 'w3_tree_maze', 'w4_maze_rooms', 'w8_arena_full'):
         t = Truth(w)
         part = fixture_values(w, 'partial')
         known_free = part == 0
         d_known = ndimage.distance_transform_edt(~known_free) * RES
-        fits_known = known_free & (ndimage.distance_transform_edt(part != 100) * RES >= ROBOT_R)
-        near_fit = ndimage.distance_transform_edt(~fits_known) * RES
-        cand = (part < 0) & t.reach & ~t.occ & (np.abs(d_known - 0.30) <= 0.026) & (t.face >= ROBOT_R) \
-            & (near_fit <= 0.45)
-        rr, cc = np.nonzero(cand)
+        fits_known = known_free & (ndimage.distance_transform_edt(part != 100) * RES >= ROBOT_R + 0.05)
         s = (t.meta['start']['x'], t.meta['start']['y'])
+        lab, _ = ndimage.label(fits_known)
+        home = lab == lab[t.cell(*s)]
+        near_home = ndimage.distance_transform_edt(~home) * RES
+        cand = (part < 0) & t.reach & ~t.occ & (np.abs(d_known - 0.30) <= 0.026) & (t.face >= ROBOT_R) \
+            & (near_home <= 0.40)
+        rr, cc = np.nonzero(cand)
         if len(rr):
-            # deterministic: the candidate farthest from the start (deepest into the opening)
-            k = int(np.argmax([math.hypot(*np.subtract(t.xy(r, c), s)) for r, c in zip(rr, cc)]))
+            # deterministic: the candidate deepest into an opening = farthest from the start's known space centre
+            k = int(np.argmin([near_home[r, c] - 0.001 * math.hypot(*np.subtract(t.xy(r, c), s))
+                               for r, c in zip(rr, cc)]))
             g = t.xy(rr[k], cc[k])
             cases.append(dict(id=f'unknown_goal_{w.split("_")[0]}', world=w, fixture='partial', start=s,
                               goal=(round(g[0], 3), round(g[1], 3)), expect='success', judge='near_goal_known_free'))
