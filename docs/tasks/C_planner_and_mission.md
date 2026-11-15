@@ -36,6 +36,8 @@ deterministic: re-running the script gives the same files.
 * C1 gives each request an explicit start pose (`use_start: true`) instead of moving the static transform, so one
   planner instance serves all cases.
 * Clearance along a path is judged with a tolerance of one map cell (0.05 m), because the map is drawn in 5 cm cells.
+* Paths on partial maps are judged against the walls the partial map shows; their clearance to the true walls is
+  reported beside it (see the finding below).
 * "recorded" fixtures (final maps from workstream A's recordings in `~/drone_replay_bags`) are not made yet.
 
 ## Findings
@@ -48,3 +50,9 @@ deterministic: re-running the script gives the same files.
 * First C1 run: 0.60 m gap passed on the full map (clearance -0.9 cm, within the one-cell tolerance); planning time
   p95 15.5 ms on W8 (limit 200 ms); goal inside a wall -> path to free space 0.33 m away; start 0.2 m from a wall ->
   no path (recorded).
+* **The planner hugs unknown space.** Second C1 run, W8 partial map: the path passed 16 cm too close to a wall corner
+  that the partial map did not show yet (rays had passed the corner without hitting it). The planner refuses to
+  enter unknown cells but keeps no distance from them (only walls are inflated). In flight the LiDAR sees the corner
+  as the drone gets closer and the mission brain re-plans every 2 s, which should catch it; the alternative is
+  Nav2's `inflate_unknown: true`, which keeps paths 0.27 m from unknown space but makes frontier goals 0.3 m into
+  the unknown unreachable with the 0.5 m tolerance. To be decided with the mission brain (C4), on the stub.

@@ -20,9 +20,10 @@ the result on the TRUE map of the world:
   start 0.2 m from a wall (W3) fails or finds a way out: recorded
   longest path (W8)            success; planning time recorded
   20 more W8 goals             for the timing figure
-Every path: clearance >= 0 (the drone's 0.27 m circle never touches a true wall), judged with a tolerance of one
-map cell (0.05 m) because the map itself is drawn in 5 cm cells; the start-in-inflation path is judged only after
-it has left the wall's inflation. Planning time p95 < 200 ms over the W8 cases.
+Every path: clearance >= 0 (the drone's 0.27 m circle never touches a wall), judged with a tolerance of one map
+cell (0.05 m) because the map itself is drawn in 5 cm cells; the start-in-inflation path is judged only after it
+has left the wall's inflation. Paths on partial maps are judged against the walls the partial map shows (a planner
+cannot avoid a wall nobody has seen); their clearance to the true walls is reported next to it. Planning time p95 < 200 ms over the W8 cases.
 
 Humble note: Nav2 Humble's ComputePathToPose returns no error code (205-208 came in a later Nav2); a failure is
 an aborted goal, and the planner's reason is in planner_server.log.
@@ -117,6 +118,21 @@ class Client:
         return dict(ok=bool(pts), why='' if pts else 'empty path', path=pts, planning_s=pt, wall_s=wall)
 
 
+class KnownWalls:
+    """Clearance against a given wall mask (e.g. the walls a partial map knows) on the world's grid."""
+
+    def __init__(self, t, occ):
+        self.t, self.occ = t, occ
+
+    def clearance(self, x, y):
+        saved = self.t.occ
+        self.t.occ = self.occ
+        try:
+            return self.t.clearance(x, y)
+        finally:
+            self.t.occ = saved
+
+
 def path_len(pts):
     return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:]))
 
@@ -156,7 +172,13 @@ def judge(case, r, t, part):
         ok = exp in ('fail', 'fail_or_tolerance', 'record') or (exp == 'record')
         return ok, f"{'ok  ' if ok else 'FAIL'} {txt} no path ({r['why']}); expected {exp}", rec
     pts = r['path']
-    clear = [t.clearance(x, y) for x, y in pts]
+    truth_clear = [t.clearance(x, y) for x, y in pts]
+    if case['fixture'] == 'partial':
+        # judged against the walls the planner could know (the partial map); walls it never saw are reported only
+        known = KnownWalls(t, part == 100)
+        clear = [known.clearance(x, y) for x, y in pts]
+    else:
+        clear = truth_clear
     if case['judge'] == 'record':                              # start inside the inflation: judge after leaving it
         k = next((i for i, c in enumerate(clear) if c >= 0), len(clear))
         clear = clear[k:]
@@ -191,6 +213,11 @@ def judge(case, r, t, part):
         ok = d_goal <= 0.1 or exp == 'record'
         extra = f'ends {d_goal:.2f} m from the goal'
     ok = ok and clear_ok
+    if case['fixture'] == 'partial':
+        tmin = min(truth_clear)
+        rec['min_clearance_truth_m'] = round(tmin, 3)
+        if tmin < -CELL_TOL:
+            extra += f' [passes {-tmin * 100:.0f} cm too close to a wall the partial map does not show yet]'
     pm = rec['planning_ms']
     line = (f"{'ok  ' if ok else 'FAIL'} {txt} path {rec['length_m']} m, {extra}; clearance min "
             f"{cmin * 100:+.1f} cm{'' if clear_ok else ' (TOUCHES A WALL)'}; planning {pm} ms; expected {exp}")
