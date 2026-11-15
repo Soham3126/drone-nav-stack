@@ -222,6 +222,7 @@ class FcRecorder:
         self.stop = False
         self.yaw = float('nan')
         self.texts = []           # (t_wall, STATUSTEXT) from the autopilot
+        self.targets = []         # (t_wall, n, e, d) POSITION_TARGET_LOCAL_NED: the target the FC is holding
 
     def __enter__(self):
         self.th = threading.Thread(target=self.run, daemon=True)
@@ -236,7 +237,8 @@ class FcRecorder:
         c = spare_heartbeat(15)
         if c is None:
             return
-        for mid in (mavutil.mavlink.MAVLINK_MSG_ID_LOCAL_POSITION_NED, mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE):
+        for mid in (mavutil.mavlink.MAVLINK_MSG_ID_LOCAL_POSITION_NED, mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,
+                    mavutil.mavlink.MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED):
             c.mav.command_long_send(1, 1, mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0, mid, 1e6 / self.rate,
                                     0, 0, 0, 0, 0)
         t_hb = 0.0
@@ -244,10 +246,13 @@ class FcRecorder:
             if time.time() - t_hb > 1.0:
                 gcs_heartbeat(c)
                 t_hb = time.time()
-            m = c.recv_match(type=['LOCAL_POSITION_NED', 'ATTITUDE', 'STATUSTEXT'], blocking=True, timeout=0.5)
+            m = c.recv_match(type=['LOCAL_POSITION_NED', 'ATTITUDE', 'STATUSTEXT', 'POSITION_TARGET_LOCAL_NED'],
+                             blocking=True, timeout=0.5)
             if m is None or m.get_srcComponent() != 1:
                 continue
-            if m.get_type() == 'STATUSTEXT':
+            if m.get_type() == 'POSITION_TARGET_LOCAL_NED':
+                self.targets.append((time.time(), m.x, m.y, m.z))
+            elif m.get_type() == 'STATUSTEXT':
                 self.texts.append((time.time(), str(m.text).strip()))
             elif m.get_type() == 'ATTITUDE':
                 self.yaw = m.yaw

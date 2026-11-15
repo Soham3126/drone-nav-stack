@@ -92,6 +92,8 @@ def main():
         t1 = time.time()
         during = cl.truth_between(t0, t1)
         fc_during = fc.between(t0, t1)
+        # the target the flight controller was really holding (its NED frame = map frame at the start, y flipped)
+        tg = [r for r in fc.targets if t1 - 2.0 <= r[0] <= t1]
         texts_after = [(round(t - t0, 1), x) for t, x in fc.texts if t0 - 1 <= t <= t1 + 15]
         if case == 'kill':
             new_bridge = start_bridge(a.out)
@@ -105,6 +107,13 @@ def main():
         okl, ml, _ = cl.command('land')
         lines.append(f'land: {ml}')
 
+    res['estimated_carrot_map'] = carrot
+    if tg:
+        carrot = (sum(r[1] for r in tg) / len(tg), -sum(r[2] for r in tg) / len(tg))
+        res['fc_target_map'] = (round(carrot[0], 3), round(carrot[1], 3))
+        res['carrot_source'] = 'POSITION_TARGET_LOCAL_NED'
+    else:
+        res['carrot_source'] = 'estimated (progress + L)'
     cw = (carrot[0] + START_W[0], carrot[1] + START_W[1])
     last1 = [p for p in during if p[0] >= t1 - 1.0]
     if last1:
@@ -140,7 +149,8 @@ def main():
 
     if case in ('freeze', 'kill'):
         ok = res.get('hold_error_m') is not None and res['hold_error_m'] <= 0.10 and res['completed_path_after']
-        lines.append(f"{'ok  ' if ok else 'FAIL'} bridge {case} at x={x_f:.2f} m: last carrot x={carrot[0]:.2f}; "
+        lines.append(f"{'ok  ' if ok else 'FAIL'} bridge {case} at x={x_f:.2f} m: last carrot ({res['carrot_source']}) "
+                     f"x={carrot[0]:.2f} y={carrot[1]:+.2f}; "
                      f"after 5 s the drone was {res.get('hold_error_m', float('nan'))*100:.1f} cm from it "
                      f"(needs <= 10), overshoot {res['overshoot_past_carrot_m']*100:.1f} cm, sideways "
                      f"{res['max_sideways_m']*100:.1f} cm; path completed afterwards: {res['completed_path_after']}")
