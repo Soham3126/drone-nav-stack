@@ -11,7 +11,7 @@ One flight per run covers the book's four scenarios:
   (b) the B5 straight path, 8 m                  -> largest lateral error
   (c) hold at the end, then the pose slips 0.1 m/s along the corridor for 3 s (as if SLAM slipped)
                                                  -> how far the drone physically follows the false slip (10 s)
-  (d) SIM_FLOW_ENABLE set to 0 mid-hover         -> largest movement in the next 20 s (instability check)
+  (d) the flow sensor stops mid-hover (range_relay flow:=false) -> largest movement in the next 20 s
 Pass (decided in the summary): slip-following reduced >= 30 % with flow; hover drift and lateral error not
 worse than +10 %; no instability in (d). Decision recorded either way.
 """
@@ -70,7 +70,10 @@ def run(out):
         # (d) flow loss mid-hover
         time.sleep(5)
         t4 = time.time()
-        res['d_SIM_FLOW_ENABLE_after'] = set_param('SIM_FLOW_ENABLE', 0)
+        import subprocess
+        r = subprocess.run(['bash', '-c', 'source /opt/ros/humble/setup.bash; source $HOME/drone_ws/install/setup.bash; '
+                            'ros2 param set /range_relay flow false'], capture_output=True, text=True, timeout=60)
+        res['d_flow_switched_off'] = r.stdout.strip() or r.stderr.strip()
         time.sleep(20)
         dl = cl.truth_between(t4, time.time())
         res['d_move_after_flow_loss_m'] = round(max(math.hypot(p[1] - dl[0][1], p[2] - dl[0][2]) for p in dl), 4)
@@ -86,7 +89,14 @@ def run(out):
 
 
 def summary(root):
-    rows = [json.load(open(f)) for f in sorted(glob.glob(os.path.join(os.path.expanduser(root), '*_B7_*', 'result.json')))]
+    files = sorted(glob.glob(os.path.join(os.path.expanduser(root), '*_B7_*', 'result.json')))
+    if not files:
+        print('no B7 runs')
+        return
+    commit = os.path.basename(os.path.dirname(files[-1])).rsplit('_', 1)[-1]
+    files = [f for f in files if os.path.basename(os.path.dirname(f)).endswith('_' + commit)]
+    print(f'B7 runs of commit {commit} only ({len(files)} runs)')
+    rows = [json.load(open(f)) for f in files]
     rows = [r for r in rows if 'c_slip_follow_m' in r]
 
     def mean(rs, k):

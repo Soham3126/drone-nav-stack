@@ -1,4 +1,6 @@
-# sitl_flow.parm (added with FLOW=1, from test B7)
-SIM_FLOW_ENABLE 1
-FLOW_TYPE       10      # SITL flow sensor
+# sitl_flow.parm (added with FLOW=1, test B7): flow velocity fused all the time, together with our position.
+# Flow comes from range_relay.py (MTF-01P stand-in, MAVLink OPTICAL_FLOW); ArduPilot's own SITL flow
+# sensor (FLOW_TYPE 10) proved unusable with the Gazebo link.
+SIM_FLOW_ENABLE 0
+FLOW_TYPE       5
 EK3_SRC1_VELXY  5

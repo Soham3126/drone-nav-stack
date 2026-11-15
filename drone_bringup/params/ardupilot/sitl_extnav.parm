@@ -14,14 +14,14 @@ COMPASS_USE     0
 COMPASS_USE2    0
 COMPASS_USE3    0
 ARMING_SKIPCHK  8         # skip GPS arming checks (confirm bit 3 = GPS before use, test B2)
-RNGFND1_TYPE    10        # MAVLink: DISTANCE_SENSOR from range_relay.py (Gazebo downward beam, stands in for the MTF-01P ToF).
+RNGFND1_TYPE    10        # MAVLink: DISTANCE_SENSOR from range_relay.py (MTF-01P stand-in: Gazebo downward beam).
 RNGFND1_ORIENT  25        # down.  gazebo-iris's analog sonar reads 0 and SITL type 100 has no data with the JSON model.
 RNGFND1_GNDCLR  0.145     # rangefinder reading when landed (sensor 5 cm below base_link); B3 hovered 0.15 m low without it
 WP_SPD          0.8       # B5: chosen speed (with lookahead 0.6 m in the bridge)
 # --- B6: fall back to optical flow only while our position is missing (lua/extnav_fallback.lua) ---
 SCR_ENABLE      1         # run the fallback script (copied to <run dir>/scripts by sim_up.sh)
-SIM_FLOW_ENABLE 1         # simulated flow sensor present ...
-FLOW_TYPE       10        # ... (SITL); NOT fused in normal flight: EK3_SRC1_VELXY stays 0 (B7)
+SIM_FLOW_ENABLE 0         # ArduPilot's built-in simulated flow is unusable with the Gazebo link (B6, B7)
+FLOW_TYPE       5         # MAVLink OPTICAL_FLOW from range_relay.py (MTF-01P stand-in); NOT fused in normal flight: EK3_SRC1_VELXY stays 0
 EK3_SRC_OPTIONS 0         # default 1 = fuse velocities of all source sets at once; we want flow only in set 2
 EK3_SRC2_POSXY  0         # set 2 (outage): no position ...
 EK3_SRC2_VELXY  5         # ... flow velocity ...
