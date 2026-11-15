@@ -10,7 +10,7 @@ Jobs
   telemetry         MAV_CMD_SET_MESSAGE_INTERVAL for the messages below, after the first HEARTBEAT
   path following    carrot follower on /bridge/follow_path, SET_POSITION_TARGET_LOCAL_NED at 10 Hz
   commands          /bridge/command (guided | arm | takeoff | land | hold), 3 s ACK wait, 2 retries
-  status            /bridge/status at 10 Hz; /bridge/link_stats (JSON text) every 5 s for test B1
+  status            /bridge/status at 10 Hz; /bridge/link_stats (JSON text) every 5 s: rates in/out, pose age at send, own CPU (B1, B9)
 It identifies itself as system 1, component 191 (onboard computer) and sends HEARTBEAT at 1 Hz.
 If the link goes quiet for 3 s it closes and reconnects (test B1 step 4).
 """
@@ -82,6 +82,11 @@ class BridgeNode(Node):
                        battery=float('nan'), lpos=None, att=None, lpos_t=0.0, status_texts=[])
         self.rx_counts = {}
         self.rx_window_start = time.monotonic()
+        # B9: what we send, how old each pose is when sent, our own CPU use and the sim time per window
+        self.tx_counts = {}
+        self.tx_age_ms = []
+        self.win_sim_start = None
+        self.win_cpu_start = time.process_time()
         self.streams_requested_for = 0          # connection number the streams were requested on
         self.pose = None                        # (stamp_s, x, y, z, roll, pitch, yaw) in map FLU
         self.reset_counter = 0
@@ -259,6 +264,9 @@ class BridgeNode(Node):
         if stamp <= self.last_sent_stamp:
             return                               # this pose was already sent
         self.last_sent_stamp = stamp
+        with self.lock:
+            self.tx_counts['VISION_POSITION_ESTIMATE'] = self.tx_counts.get('VISION_POSITION_ESTIMATE', 0) + 1
+            self.tx_age_ms.append(age * 1000.0)
         roll, pitch, yaw = flu_to_ned_rpy(r, p, yw)
         cov = [float('nan')] + [0.0] * 20       # NaN first element: ArduPilot uses VISO_POS_M_NSE / VISO_YAW_M_NSE
         self.link.send('vision_position_estimate_send', int(stamp * 1e6), x, -y, -z, roll, pitch, yaw,
@@ -315,6 +323,8 @@ class BridgeNode(Node):
         self.carrot.check_arrived(x, y, speed, self.now_s())
 
     def _send_target(self, n, e, yaw):
+        with self.lock:
+            self.tx_counts['SET_POSITION_TARGET_LOCAL_NED'] = self.tx_counts.get('SET_POSITION_TARGET_LOCAL_NED', 0) + 1
         self.link.send('set_position_target_local_ned_send', 0, 1, 1, M.MAV_FRAME_LOCAL_NED, TYPE_MASK_POS_YAW,
                        n, e, -(self.flight_height + self.height_bias), 0, 0, 0, 0, 0, 0, yaw, 0)
 
@@ -347,11 +357,24 @@ class BridgeNode(Node):
         dt = now - self.rx_window_start
         counts, self.rx_counts, self.rx_window_start = self.rx_counts, {}, now
         rates = {k: round(v / dt, 2) for k, v in sorted(counts.items())}
+        sim_now, cpu_now = self.now_s(), time.process_time()
+        sim_dt = (sim_now - self.win_sim_start) if self.win_sim_start is not None else None
+        cpu_pct = 100.0 * (cpu_now - self.win_cpu_start) / dt if dt > 0 else None
+        self.win_sim_start, self.win_cpu_start = sim_now, cpu_now
         with self.lock:
             rf, lp = self.st['rf_raw'], self.st['lpos']
+            tx, self.tx_counts = self.tx_counts, {}
+            ages, self.tx_age_ms = sorted(self.tx_age_ms), []
+        age = ({'n': len(ages), 'median': round(ages[len(ages) // 2], 1),
+                'p95': round(ages[min(len(ages) - 1, int(0.95 * len(ages)))], 1), 'max': round(ages[-1], 1)}
+               if ages else {'n': 0})
         self.pub_stats.publish(String(data=json.dumps({'window_s': round(dt, 2), 'rx_hz': rates,
                                                        'rangefinder_cm_min_max_orient_id': rf,
                                                        'ekf_height_m': round(-lp[2], 3) if lp else None,
+                                                       'tx_hz': {k: round(v / dt, 2) for k, v in sorted(tx.items())},
+                                                       'window_sim_s': round(sim_dt, 3) if sim_dt is not None else None,
+                                                       'pose_age_at_send_ms': age,
+                                                       'cpu_pct_one_core': round(cpu_pct, 2) if cpu_pct is not None else None,
                                                        'connected': self.link.connected,
                                                        'connections': self.link.connect_count})))
 
