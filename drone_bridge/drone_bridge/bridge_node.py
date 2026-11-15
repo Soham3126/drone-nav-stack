@@ -386,8 +386,16 @@ class BridgeNode(Node):
                 ok, msg = self.runner.run(name, value)
                 if ok and name == 'takeoff':
                     with self.lock:
-                        att = self.st['att']
+                        att, lp = self.st['att'], self.st['lpos']
                     self.takeoff_yaw_ned = att[2] if att else 0.0
+                    # ArduPilot's own take-off stops when its *raw* rangefinder reads the height, i.e. 14.5 cm low
+                    # with our sensor (B8). So the bridge takes over at once with a position target at the requested
+                    # height in the EKF frame (whose height B8 showed is right); later paths fly at this height too.
+                    self.flight_height = float(value)
+                    if lp is not None:
+                        time.sleep(1.0)
+                        self.following = False
+                        self.hold_target = (lp[0], lp[1], self.takeoff_yaw_ned)
                     ok, extra = self._wait_height(value, timeout=20.0)
                     msg += ' | ' + extra
                 if ok and name == 'land':
