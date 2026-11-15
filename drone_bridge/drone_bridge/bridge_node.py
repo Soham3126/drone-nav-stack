@@ -87,6 +87,7 @@ class BridgeNode(Node):
         self.reset_counter = 0
         self.pose_buf = PoseBuffer(1.0)
         self.pose_stale = True
+        self.height_bias = 0.0                  # added to the height target; measured at take-off (B8)
         self.last_sent_stamp = 0.0
         self.last_boot_ms = None                # autopilot uptime, to tell a reboot from a link drop
         self.offset = OffsetEstimator(0.1)
@@ -315,7 +316,7 @@ class BridgeNode(Node):
 
     def _send_target(self, n, e, yaw):
         self.link.send('set_position_target_local_ned_send', 0, 1, 1, M.MAV_FRAME_LOCAL_NED, TYPE_MASK_POS_YAW,
-                       n, e, -self.flight_height, 0, 0, 0, 0, 0, 0, yaw, 0)
+                       n, e, -(self.flight_height + self.height_bias), 0, 0, 0, 0, 0, 0, yaw, 0)
 
     def tick_status(self):
         with self.lock:
@@ -388,14 +389,24 @@ class BridgeNode(Node):
                     with self.lock:
                         att, lp = self.st['att'], self.st['lpos']
                     self.takeoff_yaw_ned = att[2] if att else 0.0
-                    # ArduPilot's own take-off stops when its *raw* rangefinder reads the height, i.e. 14.5 cm low
-                    # with our sensor (B8). So the bridge takes over at once with a position target at the requested
-                    # height in the EKF frame (whose height B8 showed is right); later paths fly at this height too.
+                    # ArduPilot's own take-off ends when its *raw* rangefinder reads the height: 14.5 cm low with
+                    # our sensor (B8). Taking over while still on the ground cancels the take-off (B8, 4th run), so:
+                    # 1. let ArduPilot's take-off finish (airborne and no longer climbing),
+                    # 2. hold there with a position target at the requested height,
+                    # 3. measure what is left and add it to the target once or twice (height_bias).
                     self.flight_height = float(value)
-                    if lp is not None:
-                        time.sleep(1.0)
+                    self.height_bias = 0.0
+                    reached = self._settled(min_height=0.15, timeout=15.0)
+                    if lp is not None and reached is not None:
                         self.following = False
                         self.hold_target = (lp[0], lp[1], self.takeoff_yaw_ned)
+                        for _ in range(3):
+                            time.sleep(2.0)             # let the drone respond to the new target first
+                            cur = self._settled(min_height=0.15, timeout=8.0)
+                            if cur is None or abs(value - cur) <= 0.02:
+                                break
+                            self.height_bias = max(-0.3, min(0.3, self.height_bias + (value - cur)))
+                        msg += f' | bridge height trim {self.height_bias * 100:+.1f} cm'
                     ok, extra = self._wait_height(value, timeout=20.0)
                     msg += ' | ' + extra
                 if ok and name == 'land':
@@ -431,6 +442,26 @@ class BridgeNode(Node):
         if not math.isnan(st['height']):
             return st['height']
         return -st['lpos'][2] if st['lpos'] else float('nan')
+
+    def _settled(self, min_height, timeout):
+        """Wait until the drone is above min_height and its vertical speed has stayed below 5 cm/s for 1 s.
+        Returns the mean height over that second, or None if that never happened."""
+        t0 = time.monotonic()
+        calm, hs = None, []
+        while time.monotonic() - t0 < timeout:
+            with self.lock:
+                cur = self._height(self.st)
+                lp = self.st['lpos']
+            vz = abs(lp[5]) if lp else 1.0
+            if not math.isnan(cur) and cur > min_height and vz < 0.05:
+                calm = calm or time.monotonic()
+                hs.append(cur)
+                if time.monotonic() - calm >= 1.0:
+                    return sum(hs) / len(hs)
+            else:
+                calm, hs = None, []
+            time.sleep(0.05)
+        return None
 
     def _wait_height(self, h, timeout):
         t0 = time.monotonic()
