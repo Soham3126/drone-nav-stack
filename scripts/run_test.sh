@@ -11,7 +11,7 @@ OUT=$HOME/drone_results/$(date +%Y%m%d_%H%M%S)_${ID}_${WORLD}_${GIT}
 mkdir -p "$OUT"
 cp -r "$REPO/drone_bringup/params" "$REPO/drone_slam/config" "$REPO/drone_nav/config" "$OUT/" 2>/dev/null || true
 printf 'test=%s\nworld=%s\nprofile=%s\ngit=%s\nflow=%s\nmangle=%s\nheadless=%s\nclock_throttle=%s\n' \
-  "$ID" "$WORLD" "$PROFILE" "$GIT" "${FLOW:-0}" "${MANGLE:-none}" "${HEADLESS:-1}" "${CLOCK_THROTTLE:-1}" > "$OUT/meta.txt"
+  "$ID" "$WORLD" "$PROFILE" "$GIT" "${FLOW:-0}" "${MANGLE:-none}" "${HEADLESS:-1}" "${CLOCK_THROTTLE:-0}" > "$OUT/meta.txt"
 
 "$REPO/scripts/sim_up.sh" "$WORLD" "$PROFILE" "$OUT"
 tmux new-window -t sim -n rec \

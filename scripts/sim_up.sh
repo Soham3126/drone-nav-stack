@@ -4,7 +4,7 @@
 #   env: HEADLESS=1 (default) | 0     FLOW=0 (default) | 1     MANGLE=<yaml> (truth profile)
 #        SLAM=true|false  run Cartographer (default: true, except false for the truth profile)
 #        GATE=1  pausable gates on /scan and /imu before Cartographer (A1.11)
-#        CLOCK_THROTTLE=0  the bridge gets the full 1 kHz /clock instead of a 100 Hz copy (B9 A/B check)
+#        CLOCK_THROTTLE=1  the bridge gets a 100 Hz copy of /clock (saves CPU, but shifted the EKF height 4 cm: off by default)
 set -euo pipefail
 WORLD=${1:?world, e.g. w0_box_room}; PROFILE=${2:?profile: gps|truth|slam|full}
 OUT=${3:-$HOME/drone_results/manual_$(date +%Y%m%d_%H%M%S)}
@@ -35,6 +35,6 @@ tmux new-window -t sim -n sitl "bash -ic 'source $OUT/sitl_cmd.sh'"
 sleep 20
 if [ "$PROFILE" = truth ]; then SLAM_DEF=false; else SLAM_DEF=true; fi
 tmux new-window -t sim -n ros \
-  "bash -ic 'ros_env; ros2 launch drone_bringup sim.launch.py profile:=$PROFILE slam:=${SLAM:-$SLAM_DEF} world:=$WORLD out_dir:=$OUT mangle:=${MANGLE:-none} gate:=${GATE:-false} clock_throttle:=${CLOCK_THROTTLE:-1} 2>&1 | tee $OUT/ros.log'"
+  "bash -ic 'ros_env; ros2 launch drone_bringup sim.launch.py profile:=$PROFILE slam:=${SLAM:-$SLAM_DEF} world:=$WORLD out_dir:=$OUT mangle:=${MANGLE:-none} gate:=${GATE:-false} clock_throttle:=${CLOCK_THROTTLE:-0} 2>&1 | tee $OUT/ros.log'"
 echo "up: tmux attach -t sim     down: scripts/sim_down.sh   results: $OUT"
 echo "tmux windows: gz (Gazebo), sitl (MAVProxy prompt), ros (ROS nodes).  Switch: Ctrl+b then n.  Leave: Ctrl+b then d."

@@ -125,7 +125,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('profile', default_value='gps'),
         DeclareLaunchArgument('slam', default_value='true'),
-        DeclareLaunchArgument('clock_throttle', default_value='true'),
+        DeclareLaunchArgument('clock_throttle', default_value='false'),
         DeclareLaunchArgument('world', default_value='w0_box_room'),
         DeclareLaunchArgument('out_dir', default_value=''),
         DeclareLaunchArgument('mangle', default_value='none'),
