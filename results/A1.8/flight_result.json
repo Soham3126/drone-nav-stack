@@ -1,0 +1,25 @@
+{
+ "pattern": "loop_lap",
+ "world": "w5_maze_loop",
+ "speed_m_s": 0.5,
+ "yaw_mode": "fixed",
+ "waypoints_total": 123,
+ "waypoints_reached": 123,
+ "ok": true,
+ "origin_ned": [
+  0.48980292677879333,
+  0.4902142286300659,
+  -0.1899999976158142
+ ],
+ "t_takeoff_done": 1794664628.766308,
+ "t_last_waypoint": 1794665041.3888638,
+ "duration_s": 429.2,
+ "statustext": [
+  "EKF3 IMU0 origin set",
+  "Arm: Gyros inconsistent",
+  "Arming motors",
+  "EKF3 IMU0 is using GPS",
+  "EKF3 IMU1 is using GPS",
+  "Disarming motors"
+ ]
+}

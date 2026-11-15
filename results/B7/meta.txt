@@ -1,0 +1,8 @@
+test=B7
+world=w2_turns_junctions
+profile=truth
+git=10dbeff
+flow=0
+mangle=/home/soham/drone_ws/src/drone_sim/tests/b7_slip.yaml
+headless=1
+procedure exit code 0

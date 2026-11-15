@@ -1,0 +1,32 @@
+=== A1.5 w4_maze_rooms  20261114_184603_A1.5_w4_maze_rooms_ad4bba9
+  ate_rmse_m                   0.0868
+  ate_max_m                    0.1707
+  end_error_m                  0.015
+  lengthwise_max_m             0.1507
+  sideways_max_m               0.1461
+  heading_err_max_deg          1.838
+  heading_after_turn_max_deg   1.682
+  turns_detected               14
+  precision                    1.0
+  recall                       1.0
+  phantom_cells                0
+  phantom_fraction             0.0
+  phantom_clusters             0
+  coverage                     1.0
+  clearance_margin_min_m       0.08
+  rtf_mean                     0.998
+  tilt_max_deg                 8.92
+  wall_offset_p99_m            0.1
+  corridor_free_width_min_m    0.7
+  corridor_free_width_where    [3.5, 3.5]
+  nav_wall_missing_p99         0.078
+  nav_wall_misplaced_p99       0.1
+  cpu % of one core (mean/max): gz_sim 20.2/79.1, truth_relay 16.1/18.8, cartographer 8.5/13.9, gz_bridge 6.5/7.9
+criteria for A1.5:
+  ok   ate_rmse_m                       0.0868  (needs < 0.1)
+  ok   end_error_m                       0.015  (needs < 0.15)
+  ok   precision                           1.0  (needs >= 0.95)
+  ok   recall                              1.0  (needs >= 0.9)
+  ok   phantom_fraction                    0.0  (needs < 0.005)
+  ok   phantom_clusters                      0  (needs == 0)
+A1.5: PASS

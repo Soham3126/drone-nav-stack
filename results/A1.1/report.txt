@@ -1,0 +1,23 @@
+=== A1.1 w0_box_room  20261112_140501_A1.1_w0_box_room_e7a1f8f
+  static_drift_m               0.00288
+  static_drift_deg             0.0309
+  static_jitter_std_m          0.00441
+  static_jitter_max_m          0.01518
+  static_raw_max_from_start_m  0.01601
+  pose_rate_hz                 202.0
+  precision                    1.0
+  recall                       1.0
+  phantom_cells                0
+  phantom_fraction             0.0
+  phantom_clusters             0
+  coverage                     0.8778
+  rtf_mean                     0.985
+  wall_offset_p99_m            0.05
+  corridor_free_width_min_m    0.5
+  corridor_free_width_where    [4.5, 4.5]
+  cpu % of one core (mean/max): gz_sim 36.1/76.9, truth_relay 15.9/18.8, cartographer 8.8/10.9, rosbag 8.2/175.8
+criteria for A1.1:
+  ok   static_drift_m                  0.00288  (needs < 0.01)
+  ok   static_drift_deg                 0.0309  (needs < 0.2)
+  ok   phantom_cells                         0  (needs == 0)
+A1.1: PASS

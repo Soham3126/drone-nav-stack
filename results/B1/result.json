@@ -1,0 +1,56 @@
+{
+ "bridge_heartbeat_hz": 0.999,
+ "status_hz": 9.94,
+ "link_stats_windows": 12,
+ "rx_HEARTBEAT_hz": 0.99,
+ "rx_LOCAL_POSITION_NED_hz": 30.07,
+ "rx_ATTITUDE_hz": 30.07,
+ "rx_EKF_STATUS_REPORT_hz": 1.99,
+ "rx_DISTANCE_SENSOR_hz": 9.92,
+ "rx_SYS_STATUS_hz": 1.99,
+ "status_mode": "STABILIZE",
+ "status_armed": false,
+ "status_height_m": -0.015,
+ "status_origin_set": true,
+ "status_ekf_position_ok": true,
+ "frame_offset_m": 0.0072,
+ "frame_offset_deg": 0.219,
+ "connected_trace_after_stop": [
+  [
+   -16.98,
+   true
+  ]
+ ],
+ "sitl_stopped": true,
+ "link_loss_seen": true,
+ "reconnect_s": 0.0,
+ "connections_before": 2,
+ "connections_after": 3,
+ "link_stats_last": {
+  "window_s": 22.36,
+  "rx_hz": {
+   "ATTITUDE": 4.38,
+   "COMMAND_ACK": 0.54,
+   "DISTANCE_SENSOR": 1.16,
+   "EKF_STATUS_REPORT": 0.18,
+   "HEARTBEAT": 0.22,
+   "LOCAL_POSITION_NED": 1.34,
+   "PARAM_VALUE": 0.45,
+   "STATUSTEXT": 0.58,
+   "SYS_STATUS": 0.27,
+   "TIMESYNC": 0.04
+  },
+  "rangefinder_cm_min_max_orient_id": [
+   14,
+   5,
+   800,
+   25,
+   0
+  ],
+  "ekf_height_m": null,
+  "connected": true,
+  "connections": 3
+ },
+ "test": "B1",
+ "pass": true
+}

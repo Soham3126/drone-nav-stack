@@ -1,0 +1,29 @@
+{
+ "world": "w3_tree_maze",
+ "pattern": "maze_lap",
+ "odom_frame": "world",
+ "flight": {
+  "pattern": "maze_lap",
+  "world": "w3_tree_maze",
+  "speed_m_s": 0.5,
+  "waypoints_total": 84,
+  "waypoints_reached": 84,
+  "ok": true,
+  "origin_ned": [
+   0.48980292677879333,
+   0.4902142286300659,
+   -0.1899999976158142
+  ],
+  "t_takeoff_done": 1794339935.712977,
+  "t_last_waypoint": 1794340199.9757142,
+  "duration_s": 277.1
+ },
+ "airborne_samples": 13324,
+ "clearance_margin_min_m": 0.096,
+ "clearance_margin_where": [
+  7.39,
+  3.87
+ ],
+ "clearance_margin_p5_m": 0.137,
+ "pass": true
+}

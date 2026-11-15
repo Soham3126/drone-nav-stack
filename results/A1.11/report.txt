@@ -1,0 +1,23 @@
+=== A1.11 w3_tree_maze  20261112_161601_A1.11_w3_tree_maze_e7a1f8f
+  ate_rmse_m                   1.7162
+  ate_max_m                    8.3853
+  end_error_m                  3.5078
+  lengthwise_max_m             4.878
+  sideways_max_m               7.4661
+  heading_err_max_deg          3.558
+  heading_after_turn_max_deg   2.202
+  turns_detected               1
+  precision                    0.554
+  recall                       0.5142
+  phantom_cells                1012
+  phantom_fraction             0.36813
+  phantom_clusters             22
+  coverage                     0.5262
+  clearance_margin_min_m       0.13
+  rtf_mean                     0.997
+  tilt_max_deg                 8.47
+  wall_offset_p99_m            1.0
+  corridor_free_width_min_m    0.3
+  corridor_free_width_where    [5.5, 4.5]
+  phantom clusters: [{'length_m': np.float64(4.718), 'at': [6.5, 10.17]}, {'length_m': np.float64(2.935), 'at': [4.45, 9.27]}, {'length_m': np.float64(1.906), 'at': [7.35, 9.22]}]
+  cpu % of one core (mean/max): gz_sim 20.1/78.2, truth_relay 15.2/16.8, cartographer 7.3/19.8, gz_bridge 6.8/8.9

@@ -1,0 +1,93 @@
+{
+ "flight_ok": true,
+ "events": [
+  {
+   "phase": "hover",
+   "sensor": "imu",
+   "pause_s": 2,
+   "max_pose_age_s": 0.03,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 0.5,
+   "max_error_during_cm": 9.6,
+   "recovery_s": 0.02,
+   "lasting_error_cm": 2.3
+  },
+  {
+   "phase": "hover",
+   "sensor": "scan",
+   "pause_s": 2,
+   "max_pose_age_s": 0.01,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 2.5,
+   "max_error_during_cm": 4.4,
+   "recovery_s": 0.0,
+   "lasting_error_cm": -0.3
+  },
+  {
+   "phase": "hover",
+   "sensor": "imu",
+   "pause_s": 10,
+   "max_pose_age_s": 0.11,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 2.0,
+   "max_error_during_cm": 61.5,
+   "recovery_s": 0.11,
+   "lasting_error_cm": 0.7
+  },
+  {
+   "phase": "hover",
+   "sensor": "scan",
+   "pause_s": 10,
+   "max_pose_age_s": 0.01,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 2.2,
+   "max_error_during_cm": 67.2,
+   "recovery_s": 0.95,
+   "lasting_error_cm": -0.2
+  },
+  {
+   "phase": "flying",
+   "sensor": "imu",
+   "pause_s": 2,
+   "max_pose_age_s": 0.03,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 3.8,
+   "max_error_during_cm": 117.3,
+   "recovery_s": 0.02,
+   "lasting_error_cm": 5.3
+  },
+  {
+   "phase": "flying",
+   "sensor": "scan",
+   "pause_s": 2,
+   "max_pose_age_s": 0.01,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 10.4,
+   "max_error_during_cm": 152.5,
+   "recovery_s": null,
+   "lasting_error_cm": 135.4
+  },
+  {
+   "phase": "flying",
+   "sensor": "imu",
+   "pause_s": 10,
+   "max_pose_age_s": 0.12,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 144.6,
+   "max_error_during_cm": 840.1,
+   "recovery_s": 3.11,
+   "lasting_error_cm": -38.8
+  },
+  {
+   "phase": "flying",
+   "sensor": "scan",
+   "pause_s": 10,
+   "max_pose_age_s": 0.01,
+   "stamp_lag_max_s": 0.0,
+   "error_before_cm": 100.0,
+   "max_error_during_cm": 347.3,
+   "recovery_s": null,
+   "lasting_error_cm": 244.4
+  }
+ ]
+}

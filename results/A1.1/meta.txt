@@ -1,0 +1,11 @@
+test=A1.1
+world=w0_box_room
+profile=gps
+git=e7a1f8f
+flow=0
+mangle=none
+headless=1
+speed=0
+laps=0
+yaw_mode=none
+procedure exit code 0

@@ -1,0 +1,8 @@
+test=A0.3
+world=w0_box_room
+profile=gps
+git=8467cca
+flow=0
+mangle=none
+headless=1
+procedure exit code 0

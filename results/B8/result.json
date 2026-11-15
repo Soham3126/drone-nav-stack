@@ -1,0 +1,120 @@
+{
+ "cycles": [
+  {
+   "target": 1.1,
+   "ok": true,
+   "height_error_m": -0.006,
+   "takeoff_jump_m": 0.044,
+   "ekf_height_m": 1.095,
+   "rangefinder_minus_clearance_m": 1.094,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": null,
+   "land_message": "land accepted and confirmed | disarmed after 5.0 s"
+  },
+  {
+   "target": 1.1,
+   "ok": true,
+   "height_error_m": 0.002,
+   "takeoff_jump_m": 0.044,
+   "ekf_height_m": 1.101,
+   "rangefinder_minus_clearance_m": 1.102,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    14,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 5.2 s"
+  },
+  {
+   "target": 1.1,
+   "ok": true,
+   "height_error_m": 0.003,
+   "takeoff_jump_m": 0.044,
+   "ekf_height_m": 1.101,
+   "rangefinder_minus_clearance_m": 1.102,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    14,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 4.8 s"
+  },
+  {
+   "target": 1.1,
+   "ok": true,
+   "height_error_m": 0.001,
+   "takeoff_jump_m": 0.044,
+   "ekf_height_m": 1.1,
+   "rangefinder_minus_clearance_m": 1.101,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    14,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 4.6 s"
+  },
+  {
+   "target": 1.1,
+   "ok": true,
+   "height_error_m": -0.017,
+   "takeoff_jump_m": 0.046,
+   "ekf_height_m": 1.074,
+   "rangefinder_minus_clearance_m": 1.081,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    14,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 5.0 s"
+  },
+  {
+   "target": 0.5,
+   "ok": true,
+   "height_error_m": 0.003,
+   "takeoff_jump_m": 0.025,
+   "ekf_height_m": 0.501,
+   "rangefinder_minus_clearance_m": 0.502,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    14,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 4.0 s"
+  },
+  {
+   "target": 1.5,
+   "ok": true,
+   "height_error_m": -0.003,
+   "takeoff_jump_m": 0.053,
+   "ekf_height_m": 1.499,
+   "rangefinder_minus_clearance_m": 1.497,
+   "landed_and_disarmed": true,
+   "ground_rangefinder": [
+    13,
+    5,
+    800,
+    25,
+    0
+   ],
+   "land_message": "land accepted and confirmed | disarmed after 6.2 s"
+  }
+ ],
+ "RNGFND1_GNDCLR": 0.14499999582767487,
+ "test": "B8",
+ "pass": true
+}

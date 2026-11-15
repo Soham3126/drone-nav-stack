@@ -1,0 +1,48 @@
+{
+ "speed": 1.0,
+ "lookahead": 0.7,
+ "paths": {
+  "straight": {
+   "lateral_straight_max": 0.055,
+   "lateral_corner_max": 0.0,
+   "clearance_min": 0.15,
+   "arrival_error": 0.015,
+   "arrived": true,
+   "time_s": 13.9,
+   "length_m": 8.0,
+   "pass": true
+  },
+  "l_turn": {
+   "lateral_straight_max": 0.058,
+   "lateral_corner_max": 0.103,
+   "clearance_min": 0.147,
+   "arrival_error": 0.012,
+   "arrived": true,
+   "time_s": 9.4,
+   "length_m": 5.0,
+   "pass": true
+  },
+  "t_junction": {
+   "lateral_straight_max": 0.061,
+   "lateral_corner_max": 0.103,
+   "clearance_min": 0.136,
+   "arrival_error": 0.022,
+   "arrived": true,
+   "time_s": 25.8,
+   "length_m": 16.0,
+   "pass": true
+  },
+  "u_turn": {
+   "lateral_straight_max": 0.057,
+   "lateral_corner_max": 0.098,
+   "clearance_min": 0.147,
+   "arrival_error": 0.027,
+   "arrived": true,
+   "time_s": 29.4,
+   "length_m": 18.0,
+   "pass": true
+  }
+ },
+ "test": "B5",
+ "pass": true
+}

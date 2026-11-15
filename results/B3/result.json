@@ -1,0 +1,18 @@
+{
+ "case": "d050_n00.yaml",
+ "mangle_delay_s": 0.05,
+ "mangle_noise_m": 0.0,
+ "viso_delay_ms": 50.0,
+ "hover_samples": 2981,
+ "drift_m": 0.0307,
+ "osc_m": 0.032,
+ "height_mean_m": 0.955,
+ "offset_max_m": 0.0141,
+ "offset_max_deg": 0.221,
+ "landed": true,
+ "fc_samples": 596,
+ "fc_belief_drift_m": 0.021,
+ "rule": "matched: drift 3.1 cm < 5, offset 1.4 cm < 2",
+ "test": "B3",
+ "pass": true
+}

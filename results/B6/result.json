@@ -1,0 +1,58 @@
+{
+ "case": "pose_long",
+ "x_at_disturbance": 4.009,
+ "last_carrot_map": [
+  4.608760393866728,
+  0.0
+ ],
+ "bridge_pid": 127155,
+ "estimated_carrot_map": [
+  4.608760393866728,
+  0.0
+ ],
+ "carrot_source": "estimated (progress + L)",
+ "hold_error_m": 0.049,
+ "fc_belief_hold_error_m": 0.042,
+ "fc_belief_minus_truth_m": 0.008,
+ "autopilot_messages": [
+  [
+   0.4,
+   "ExtNav lost: flow fallback (source set 2)"
+  ],
+  [
+   0.5,
+   "EKF3 IMU0 fusing optical flow"
+  ],
+  [
+   0.5,
+   "EKF3 IMU1 fusing optical flow"
+  ],
+  [
+   8.5,
+   "ExtNav lost 8 s: LAND"
+  ],
+  [
+   13.0,
+   "Disarming motors"
+  ],
+  [
+   14.3,
+   "PreArm: VisOdom: not healthy"
+  ]
+ ],
+ "overshoot_past_carrot_m": 0.061,
+ "max_sideways_m": 0.085,
+ "completed_path_after": false,
+ "ekf_position_lost_after_s": 10.5,
+ "modes_seen": [
+  "GUIDED",
+  "LAND"
+ ],
+ "drift_during_pause_m": 0.65,
+ "status_before": {
+  "mode": "GUIDED",
+  "ekf_ok": true
+ },
+ "test": "B6",
+ "pass": true
+}

@@ -1,0 +1,11 @@
+test=A1.11
+world=w3_tree_maze
+profile=gps
+git=e7a1f8f
+flow=0
+mangle=none
+headless=1
+speed=0.5
+laps=0
+yaw_mode=fixed
+procedure exit code 0

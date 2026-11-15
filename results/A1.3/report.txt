@@ -1,0 +1,27 @@
+/home/soham/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+=== A1.3 w1_corridor_plain  20261112_142019_A1.3_w1_corridor_plain_e7a1f8f__replay_mcd6_n20
+  ate_rmse_m                   0.0151
+  ate_max_m                    0.049
+  end_error_m                  0.0044
+  lengthwise_max_m             0.0487
+  sideways_max_m               0.0077
+  heading_err_max_deg          0.309
+  heading_after_turn_max_deg   0.016
+  turns_detected               1
+  precision                    1.0
+  recall                       1.0
+  phantom_cells                0
+  phantom_fraction             0.0
+  phantom_clusters             0
+  coverage                     1.0
+  clearance_margin_min_m       0.18
+  tilt_max_deg                 12.04
+  wall_offset_p99_m            0.05
+  corridor_free_width_min_m    0.9
+  corridor_free_width_where    [0.5, 0.5]
+criteria for A1.3:
+  ok   lengthwise_max_m                 0.0487  (needs < 0.3)
+  ok   end_error_m                      0.0044  (needs < 0.15)
+  ok   sideways_max_m                   0.0077  (needs < 0.05)
+A1.3: PASS

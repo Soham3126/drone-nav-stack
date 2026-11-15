@@ -1,0 +1,13 @@
+test=A1.6
+world=w4_maze_rooms
+profile=gps
+git=ad4bba9
+flow=0
+mangle=none
+headless=1
+speed=1.5
+laps=1
+yaw_mode=fixed
+pattern=maze_lap
+extra_params={"WP_ACC": 5.0}
+procedure exit code 0

@@ -1,0 +1,20 @@
+=== A1.7a w1_corridor_plain  20261112_153718_A1.7_w1_corridor_plain_e7a1f8f
+  ate_rmse_m                   0.0147
+  ate_max_m                    0.0349
+  end_error_m                  0.0273
+  lengthwise_max_m             0.0348
+  sideways_max_m               0.0144
+  heading_err_max_deg          0.412
+  turns_detected               0
+  recall                       0.0
+  coverage                     0.4899
+  clearance_margin_min_m       0.18
+  rtf_mean                     0.991
+  tilt_max_deg                 0.33
+  near_ground_phantom_cells    0
+  near_ground_phantom_clusters 0
+  near_ground_phantom_longest_m 0.0
+  cpu % of one core (mean/max): gz_sim 28.1/73.9, truth_relay 15.3/17.8, rosbag 12.1/173.8, cartographer 8.8/9.9
+criteria for A1.7a:
+  ok   near_ground_phantom_clusters          0  (needs == 0)
+A1.7a: PASS

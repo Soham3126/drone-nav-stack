@@ -1,0 +1,55 @@
+{
+ "world": "w0_box_room",
+ "alignment": {
+  "x": 3.0,
+  "y": 3.0,
+  "yaw_deg": -0.0
+ },
+ "airborne_s": 81.1,
+ "ate_rmse_m": 0.0193,
+ "ate_max_m": 0.0541,
+ "heading_err_max_deg": 0.74,
+ "end_error_m": 0.0201,
+ "lengthwise_max_m": 0.0493,
+ "lengthwise_rms_m": 0.0138,
+ "sideways_max_m": 0.0367,
+ "sideways_p95_m": 0.0244,
+ "turns_detected": 2,
+ "heading_after_turn_max_deg": 0.274,
+ "heading_after_turn_deg": [
+  0.15,
+  0.274
+ ],
+ "map_occupied_cells": 1099,
+ "maps_seen": 54,
+ "precision": 1.0,
+ "phantom_cells": 0,
+ "phantom_fraction": 0.0,
+ "phantom_clusters": 0,
+ "phantom_cluster_list": [],
+ "visible_wall_cells": 539,
+ "recall": 1.0,
+ "coverage": 1.0,
+ "tilt_max_deg": 8.16,
+ "wall_offset_p99_m": 0.05,
+ "corridor_free_width_min_m": 0.316,
+ "corridor_free_width_where": [
+  4.5,
+  4.5
+ ],
+ "clearance_margin_min_m": 0.43,
+ "test": "A1.2",
+ "run": "20261112_141109_A1.2_w0_box_room_e7a1f8f__replay_mcd6_n20",
+ "params": {
+  "speed": "0.5",
+  "yaw_mode": "fixed",
+  "laps": "3",
+  "git": "e7a1f8f",
+  "headless": "1",
+  "extra_params": "{}",
+  "replay_of": "20261112_141109_A1.2_w0_box_room_e7a1f8f",
+  "replay_name": "mcd6_n20",
+  "replay_override": "POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20"
+ },
+ "pass": true
+}

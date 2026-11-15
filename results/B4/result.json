@@ -1,0 +1,19 @@
+{
+ "scenario": "d_step_yaw5",
+ "config": {
+  "step_time": -1.0,
+  "step_yaw_deg": 5.0
+ },
+ "baseline_offset_max_m": 0.015,
+ "moved_max_m": 0.026,
+ "moved_final_xy_m": [
+  0.002,
+  -0.0
+ ],
+ "fc_jump_1s_m": 0.009,
+ "offset_peak_m": 0.392,
+ "offset_peak_deg": 4.57,
+ "offset_back_below_2cm_s": null,
+ "test": "B4",
+ "pass": true
+}

@@ -1,0 +1,8 @@
+test=B4
+world=w2_turns_junctions
+profile=truth
+git=310c5be
+flow=0
+mangle=/home/soham/drone_ws/src/drone_sim/tests/b4_cases/d_step_yaw5.yaml
+headless=1
+procedure exit code 0

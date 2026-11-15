@@ -1,0 +1,17 @@
+test=A1.4
+world=w2_turns_junctions
+profile=gps
+git=e7a1f8f
+flow=0
+mangle=none
+headless=1
+speed=0.5
+laps=1
+yaw_mode=fixed
+pattern=turns_tour
+extra_params={}
+replay_of=20261112_142716_A1.4_w2_turns_junctions_e7a1f8f
+replay_name=mcd6_n20
+replay_override=POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20
+replay_rate=2
+imu_source=/imu_raw

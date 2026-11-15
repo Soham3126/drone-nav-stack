@@ -1,0 +1,338 @@
+{
+ "rounds": [
+  {
+   "happy": {
+    "ok": true,
+    "steps": [
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.05,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.7,
+      "message": "arm accepted and confirmed | Arming motors",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "takeoff",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 3.76,
+      "message": "takeoff accepted | height 1.01 m reached in 3.7 s",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 1.17,
+      "truth_height": 1.029
+     },
+     {
+      "cmd": "land",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 4.46,
+      "message": "land accepted and confirmed | disarmed after 4.4 s",
+      "mode": "LAND",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     }
+    ]
+   },
+   "timeout": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.05,
+    "message": "flight controller not connected"
+   },
+   "refusal": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.55,
+    "message": "arm refused: FAILED | Arm: System not initialised | Barometer 1 calibration complete | Barometer 2 calibration complete | ArduPilot Ready | AHRS: DCM active | RC7: SaveWaypoint LOW | RC8: PrecisionLoiter MIDDLE",
+    "ekf_ok_at_call": false,
+    "origin_at_call": false
+   }
+  },
+  {
+   "happy": {
+    "ok": true,
+    "steps": [
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.05,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Accels inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.4,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Gyros inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.45,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Gyros inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.5,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.55,
+      "message": "arm accepted and confirmed | Arming motors",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "takeoff",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 3.76,
+      "message": "takeoff accepted | height 1.03 m reached in 3.7 s",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 1.16,
+      "truth_height": 1.029
+     },
+     {
+      "cmd": "land",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 4.46,
+      "message": "land accepted and confirmed | disarmed after 4.4 s",
+      "mode": "LAND",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     }
+    ]
+   },
+   "timeout": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.05,
+    "message": "flight controller not connected"
+   },
+   "refusal": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.55,
+    "message": "arm refused: FAILED | Arm: System not initialised | Barometer 1 calibration complete | Barometer 2 calibration complete | ArduPilot Ready | AHRS: DCM active | RC7: SaveWaypoint LOW | RC8: PrecisionLoiter MIDDLE",
+    "ekf_ok_at_call": false,
+    "origin_at_call": false
+   }
+  },
+  {
+   "happy": {
+    "ok": true,
+    "steps": [
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.05,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Accels inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.4,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Gyros inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.5,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": false,
+      "state_ok": false,
+      "seconds": 0.55,
+      "message": "arm refused: FAILED | Arm: Gyros inconsistent",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "guided",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.5,
+      "message": "guided accepted and confirmed",
+      "mode": "GUIDED",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "arm",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 0.55,
+      "message": "arm accepted and confirmed | Arming motors",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 0.14,
+      "truth_height": 0.0
+     },
+     {
+      "cmd": "takeoff",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 3.86,
+      "message": "takeoff accepted | height 1.02 m reached in 3.8 s",
+      "mode": "GUIDED",
+      "armed": true,
+      "height": 1.16,
+      "truth_height": 1.018
+     },
+     {
+      "cmd": "land",
+      "ok": true,
+      "state_ok": true,
+      "seconds": 5.46,
+      "message": "land accepted and confirmed | disarmed after 5.4 s",
+      "mode": "LAND",
+      "armed": false,
+      "height": 0.14,
+      "truth_height": 0.0
+     }
+    ]
+   },
+   "timeout": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.05,
+    "message": "flight controller not connected"
+   },
+   "refusal": {
+    "ok": true,
+    "success": false,
+    "seconds": 0.55,
+    "message": "arm refused: FAILED | Arm: System not initialised | Barometer 1 calibration complete | Barometer 2 calibration complete | ArduPilot Ready | AHRS: DCM active | RC7: SaveWaypoint LOW | RC8: PrecisionLoiter MIDDLE",
+    "ekf_ok_at_call": false,
+    "origin_at_call": false
+   }
+  }
+ ],
+ "counts": {
+  "happy": 3,
+  "refusal": 3,
+  "timeout": 3
+ },
+ "test": "B2",
+ "pass": true
+}

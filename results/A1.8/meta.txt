@@ -1,0 +1,13 @@
+test=A1.8
+world=w5_maze_loop
+profile=gps
+git=ad4bba9
+flow=0
+mangle=none
+headless=1
+speed=0.5
+laps=1
+yaw_mode=fixed
+pattern=loop_lap
+extra_params={}
+procedure exit code 0

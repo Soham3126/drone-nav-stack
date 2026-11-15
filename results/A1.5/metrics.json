@@ -1,0 +1,114 @@
+{
+ "world": "w4_maze_rooms",
+ "alignment": {
+  "x": 0.5,
+  "y": 0.5,
+  "yaw_deg": -0.0
+ },
+ "airborne_s": 414.4,
+ "ate_rmse_m": 0.0868,
+ "ate_max_m": 0.1707,
+ "heading_err_max_deg": 1.838,
+ "end_error_m": 0.015,
+ "lengthwise_max_m": 0.1507,
+ "lengthwise_rms_m": 0.0619,
+ "sideways_max_m": 0.1461,
+ "sideways_p95_m": 0.1147,
+ "turns_detected": 14,
+ "heading_after_turn_max_deg": 1.682,
+ "heading_after_turn_deg": [
+  0.012,
+  1.082,
+  0.345,
+  0.348,
+  0.044,
+  0.024,
+  0.515,
+  0.31,
+  0.23,
+  0.221,
+  1.627,
+  1.682,
+  1.223,
+  0.881
+ ],
+ "map_occupied_cells": 5302,
+ "maps_seen": 429,
+ "precision": 1.0,
+ "phantom_cells": 0,
+ "phantom_fraction": 0.0,
+ "phantom_clusters": 0,
+ "phantom_cluster_list": [],
+ "visible_wall_cells": 3876,
+ "recall": 1.0,
+ "coverage": 1.0,
+ "tilt_max_deg": 8.92,
+ "wall_offset_p99_m": 0.1,
+ "corridor_free_width_min_m": 0.7,
+ "corridor_free_width_where": [
+  3.5,
+  3.5
+ ],
+ "clearance_margin_min_m": 0.08,
+ "rtf_mean": 0.998,
+ "cpu": {
+  "gz_sim": {
+   "cpu_mean": 20.2,
+   "cpu_max": 79.1,
+   "mem_growth_mb": 1382.1
+  },
+  "mavproxy": {
+   "cpu_mean": 4.3,
+   "cpu_max": 7.0,
+   "mem_growth_mb": 0.1
+  },
+  "arducopter": {
+   "cpu_mean": 3.9,
+   "cpu_max": 5.0,
+   "mem_growth_mb": 0.2
+  },
+  "rosbag": {
+   "cpu_mean": 6.2,
+   "cpu_max": 171.7,
+   "mem_growth_mb": -62.5
+  },
+  "gz_bridge": {
+   "cpu_mean": 6.5,
+   "cpu_max": 7.9,
+   "mem_growth_mb": 0.1
+  },
+  "robot_state_pub": {
+   "cpu_mean": 2.2,
+   "cpu_max": 3.0,
+   "mem_growth_mb": -0.1
+  },
+  "truth_relay": {
+   "cpu_mean": 16.1,
+   "cpu_max": 18.8,
+   "mem_growth_mb": 0.2
+  },
+  "cartographer": {
+   "cpu_mean": 8.5,
+   "cpu_max": 13.9,
+   "mem_growth_mb": 24.6
+  },
+  "carto_grid": {
+   "cpu_mean": 2.5,
+   "cpu_max": 4.0,
+   "mem_growth_mb": 3.9
+  }
+ },
+ "nav_wall_missing_p99": 0.078,
+ "nav_wall_misplaced_p99": 0.1,
+ "test": "A1.5",
+ "run": "20261114_184603_A1.5_w4_maze_rooms_ad4bba9",
+ "params": {
+  "speed": "0.5",
+  "yaw_mode": "fixed",
+  "laps": "1",
+  "git": "ad4bba9",
+  "headless": "1",
+  "extra_params": "{}"
+ },
+ "pass": true
+}

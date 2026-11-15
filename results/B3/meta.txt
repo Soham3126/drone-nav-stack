@@ -1,0 +1,8 @@
+test=B3
+world=w0_box_room
+profile=truth
+git=62134c0
+flow=0
+mangle=/home/soham/drone_ws/src/drone_sim/tests/b3_cases/d050_n00.yaml
+headless=1
+procedure exit code 0

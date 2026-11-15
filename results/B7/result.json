@@ -1,0 +1,14 @@
+{
+ "flow": false,
+ "a_hover_drift_m": 0.0624,
+ "b_lateral_max_m": 0.027,
+ "b_time_s": 15.9,
+ "c_slip_follow_m": 0.4661,
+ "d_flow_switched_off": "Set parameter successful",
+ "d_move_after_flow_loss_m": 0.0543,
+ "d_modes": [
+  "GUIDED"
+ ],
+ "test": "B7",
+ "pass": true
+}

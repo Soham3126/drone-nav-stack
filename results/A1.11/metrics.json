@@ -1,0 +1,169 @@
+{
+ "world": "w3_tree_maze",
+ "alignment": {
+  "x": 0.5,
+  "y": 0.5,
+  "yaw_deg": -0.0
+ },
+ "airborne_s": 203.1,
+ "ate_rmse_m": 1.7162,
+ "ate_max_m": 8.3853,
+ "heading_err_max_deg": 3.558,
+ "end_error_m": 3.5078,
+ "lengthwise_max_m": 4.878,
+ "lengthwise_rms_m": 1.0993,
+ "sideways_max_m": 7.4661,
+ "sideways_p95_m": 3.1044,
+ "turns_detected": 1,
+ "heading_after_turn_max_deg": 2.202,
+ "heading_after_turn_deg": [
+  2.202
+ ],
+ "map_occupied_cells": 2749,
+ "maps_seen": 216,
+ "precision": 0.554,
+ "phantom_cells": 1012,
+ "phantom_fraction": 0.36813,
+ "phantom_clusters": 22,
+ "phantom_cluster_list": [
+  {
+   "length_m": 4.718,
+   "at": [
+    6.5,
+    10.17
+   ]
+  },
+  {
+   "length_m": 2.935,
+   "at": [
+    4.45,
+    9.27
+   ]
+  },
+  {
+   "length_m": 1.906,
+   "at": [
+    7.35,
+    9.22
+   ]
+  },
+  {
+   "length_m": 1.04,
+   "at": [
+    6.65,
+    5.52
+   ]
+  },
+  {
+   "length_m": 0.955,
+   "at": [
+    9.4,
+    10.52
+   ]
+  },
+  {
+   "length_m": 0.906,
+   "at": [
+    6.5,
+    7.22
+   ]
+  },
+  {
+   "length_m": 0.757,
+   "at": [
+    5.35,
+    4.37
+   ]
+  },
+  {
+   "length_m": 0.652,
+   "at": [
+    9.35,
+    9.32
+   ]
+  },
+  {
+   "length_m": 0.604,
+   "at": [
+    4.95,
+    5.52
+   ]
+  },
+  {
+   "length_m": 0.57,
+   "at": [
+    4.5,
+    2.92
+   ]
+  }
+ ],
+ "visible_wall_cells": 1970,
+ "recall": 0.5142,
+ "coverage": 0.5262,
+ "tilt_max_deg": 8.47,
+ "wall_offset_p99_m": 1.0,
+ "corridor_free_width_min_m": 0.3,
+ "corridor_free_width_where": [
+  5.5,
+  4.5
+ ],
+ "clearance_margin_min_m": 0.13,
+ "rtf_mean": 0.997,
+ "cpu": {
+  "gz_sim": {
+   "cpu_mean": 20.1,
+   "cpu_max": 78.2,
+   "mem_growth_mb": 1301.4
+  },
+  "mavproxy": {
+   "cpu_mean": 4.2,
+   "cpu_max": 7.9,
+   "mem_growth_mb": 0.1
+  },
+  "arducopter": {
+   "cpu_mean": 3.9,
+   "cpu_max": 5.0,
+   "mem_growth_mb": 0.2
+  },
+  "rosbag": {
+   "cpu_mean": 6.4,
+   "cpu_max": 157.7,
+   "mem_growth_mb": -63.6
+  },
+  "gz_bridge": {
+   "cpu_mean": 6.8,
+   "cpu_max": 8.9,
+   "mem_growth_mb": 0.0
+  },
+  "robot_state_pub": {
+   "cpu_mean": 2.2,
+   "cpu_max": 4.0,
+   "mem_growth_mb": -0.2
+  },
+  "truth_relay": {
+   "cpu_mean": 15.2,
+   "cpu_max": 16.8,
+   "mem_growth_mb": 0.1
+  },
+  "cartographer": {
+   "cpu_mean": 7.3,
+   "cpu_max": 19.8,
+   "mem_growth_mb": 10.8
+  },
+  "carto_grid": {
+   "cpu_mean": 2.3,
+   "cpu_max": 3.0,
+   "mem_growth_mb": 2.4
+  }
+ },
+ "test": "A1.11",
+ "run": "20261112_161601_A1.11_w3_tree_maze_e7a1f8f",
+ "params": {
+  "speed": "0.5",
+  "yaw_mode": "fixed",
+  "laps": "0",
+  "git": "e7a1f8f",
+  "headless": "1"
+ },
+ "pass": null
+}

@@ -1,0 +1,12 @@
+test=A1.7
+world=w1_corridor_plain
+profile=gps
+git=e7a1f8f
+flow=0
+mangle=none
+headless=1
+style=a
+speed=0.5
+yaw_mode=fixed
+laps=0
+procedure exit code 0

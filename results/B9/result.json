@@ -1,0 +1,164 @@
+{
+ "unloaded": {
+  "name": "unloaded",
+  "takeoff": "takeoff: takeoff accepted | bridge height trim -3.5 cm | height 1.10 m reached in 0.0 s",
+  "path_out_arrived": true,
+  "path_back_arrived": true,
+  "path_s": 49.7,
+  "landed": true,
+  "land_message": "land accepted and confirmed | disarmed after 4.6 s",
+  "ok": true,
+  "rtf": 0.996,
+  "rates_sim_hz": {
+   "/scan": 10.0,
+   "tf map->base_link": 200.59,
+   "from FC ATTITUDE": 30.29,
+   "from FC DISTANCE_SENSOR": 9.98,
+   "from FC EKF_STATUS_REPORT": 2.0,
+   "from FC HEARTBEAT": 1.0,
+   "from FC LOCAL_POSITION_NED": 30.29,
+   "from FC SYS_STATUS": 2.0,
+   "to FC SET_POSITION_TARGET_LOCAL_NED": 10.0,
+   "to FC VISION_POSITION_ESTIMATE": 29.99
+  },
+  "bridge_cpu_pct": {
+   "median": 37.99,
+   "max": 39.39
+  },
+  "delay_ms": {
+   "scan_delivery": {
+    "n": 694,
+    "median": 2.0,
+    "p95": 3.6,
+    "max": 7.2
+   },
+   "cartographer": {
+    "n": 694,
+    "median": 8.6,
+    "p95": 10.5,
+    "max": 14.1
+   },
+   "tf_age_median": 0.7,
+   "bridge_age_median": 3.0,
+   "effective": 5.0,
+   "total": 7.3
+  },
+  "slam": {
+   "velocity_rms_at_best_shift_m_s": 0.0569,
+   "position_rms_at_best_shift_m": 0.0242,
+   "position_rms_at_zero_shift_m": 0.0242,
+   "pose_jumps": {
+    "count_over_2cm": 31,
+    "max_cm": 5.1,
+    "times_s": [
+     1.9,
+     2.0,
+     5.2,
+     6.8,
+     6.9,
+     7.0,
+     7.3,
+     7.7,
+     12.6,
+     12.7,
+     12.9,
+     13.3,
+     13.4,
+     15.8,
+     18.4,
+     18.5,
+     20.7,
+     21.2,
+     21.6,
+     22.2
+    ]
+   }
+  },
+  "fc_estimate": {
+   "delay_vs_truth_ms": -15.0,
+   "position_rms_m": 0.034
+  },
+  "max_distance_from_path_m": 0.091,
+  "extnav_lost_count": 0
+ },
+ "loaded": {
+  "name": "loaded (stress-ng --cpu 4)",
+  "takeoff": "takeoff: takeoff accepted | bridge height trim -4.7 cm | height 1.09 m reached in 0.0 s",
+  "path_out_arrived": true,
+  "path_back_arrived": true,
+  "path_s": 50.4,
+  "landed": true,
+  "land_message": "land accepted and confirmed | disarmed after 4.6 s",
+  "ok": true,
+  "rtf": 0.987,
+  "rates_sim_hz": {
+   "/scan": 10.0,
+   "tf map->base_link": 201.95,
+   "from FC ATTITUDE": 30.28,
+   "from FC DISTANCE_SENSOR": 10.0,
+   "from FC EKF_STATUS_REPORT": 2.0,
+   "from FC HEARTBEAT": 1.0,
+   "from FC LOCAL_POSITION_NED": 30.28,
+   "from FC SYS_STATUS": 2.0,
+   "to FC SET_POSITION_TARGET_LOCAL_NED": 10.0,
+   "to FC VISION_POSITION_ESTIMATE": 29.99
+  },
+  "bridge_cpu_pct": {
+   "median": 40.42,
+   "max": 41.87
+  },
+  "delay_ms": {
+   "scan_delivery": {
+    "n": 694,
+    "median": 3.4,
+    "p95": 6.4,
+    "max": 10.8
+   },
+   "cartographer": {
+    "n": 695,
+    "median": 10.9,
+    "p95": 14.0,
+    "max": 18.0
+   },
+   "tf_age_median": 0.7,
+   "bridge_age_median": 3.0,
+   "effective": 5.0,
+   "total": 7.3
+  },
+  "slam": {
+   "velocity_rms_at_best_shift_m_s": 0.0477,
+   "position_rms_at_best_shift_m": 0.0255,
+   "position_rms_at_zero_shift_m": 0.0253,
+   "pose_jumps": {
+    "count_over_2cm": 11,
+    "max_cm": 2.9,
+    "times_s": [
+     3.9,
+     9.1,
+     13.5,
+     13.6,
+     17.0,
+     47.3,
+     55.2,
+     56.5,
+     65.7,
+     66.9,
+     67.0
+    ]
+   }
+  },
+  "fc_estimate": {
+   "delay_vs_truth_ms": -20.0,
+   "position_rms_m": 0.0409
+  },
+  "max_distance_from_path_m": 0.094,
+  "extnav_lost_count": 0
+ },
+ "largest_rate_change": 0.007,
+ "rates_ok": true,
+ "bridge_cpu_ok": false,
+ "rtf_ok": true,
+ "suggested_VISO_DELAY_MS": 10,
+ "test": "B9",
+ "pass": false
+}

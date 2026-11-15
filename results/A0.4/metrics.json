@@ -1,0 +1,84 @@
+{
+ "world": "w3_tree_maze",
+ "alignment": {
+  "x": 0.5,
+  "y": 0.5,
+  "yaw_deg": -0.0
+ },
+ "airborne_s": 266.4,
+ "ate_rmse_m": 0.0667,
+ "ate_max_m": 0.1213,
+ "heading_err_max_deg": 0.925,
+ "end_error_m": 0.0808,
+ "lengthwise_max_m": 0.1127,
+ "lengthwise_rms_m": 0.0468,
+ "sideways_max_m": 0.1213,
+ "sideways_p95_m": 0.0927,
+ "turns_detected": 0,
+ "map_occupied_cells": 3363,
+ "maps_seen": 278,
+ "precision": 0.9985,
+ "phantom_cells": 0,
+ "phantom_fraction": 0.0,
+ "phantom_clusters": 0,
+ "phantom_cluster_list": [],
+ "visible_wall_cells": 2596,
+ "recall": 0.9961,
+ "coverage": 0.9997,
+ "clearance_margin_min_m": 0.08,
+ "rtf_mean": 0.997,
+ "cpu": {
+  "gz_sim": {
+   "cpu_mean": 13.0,
+   "cpu_max": 77.2,
+   "mem_growth_mb": 1303.6
+  },
+  "mavproxy": {
+   "cpu_mean": 4.5,
+   "cpu_max": 7.0,
+   "mem_growth_mb": 0.0
+  },
+  "arducopter": {
+   "cpu_mean": 4.0,
+   "cpu_max": 5.0,
+   "mem_growth_mb": 0.2
+  },
+  "rosbag": {
+   "cpu_mean": 6.1,
+   "cpu_max": 152.8,
+   "mem_growth_mb": -61.9
+  },
+  "gz_bridge": {
+   "cpu_mean": 6.6,
+   "cpu_max": 7.9,
+   "mem_growth_mb": 0.0
+  },
+  "robot_state_pub": {
+   "cpu_mean": 2.3,
+   "cpu_max": 4.0,
+   "mem_growth_mb": -0.2
+  },
+  "truth_relay": {
+   "cpu_mean": 17.1,
+   "cpu_max": 19.8,
+   "mem_growth_mb": 0.1
+  },
+  "cartographer": {
+   "cpu_mean": 10.5,
+   "cpu_max": 66.4,
+   "mem_growth_mb": 10.6
+  },
+  "carto_grid": {
+   "cpu_mean": 2.5,
+   "cpu_max": 4.0,
+   "mem_growth_mb": 2.7
+  }
+ },
+ "test": "A0.4",
+ "run": "20261111_011500_A0.4_w3_tree_maze_8467cca",
+ "params": {
+  "git": "8467cca",
+  "headless": "1"
+ },
+ "pass": null
+}

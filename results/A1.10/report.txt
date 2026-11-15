@@ -1,0 +1,22 @@
+=== A1.10 w4_maze_rooms  20261112_160811_A1.10_w4_maze_rooms_e7a1f8f
+  ate_rmse_m                   0.1174
+  ate_max_m                    0.2284
+  end_error_m                  0.0309
+  lengthwise_max_m             0.2184
+  sideways_max_m               0.2123
+  heading_err_max_deg          1.652
+  heading_after_turn_max_deg   0.899
+  turns_detected               14
+  precision                    0.9463
+  recall                       0.9876
+  phantom_cells                0
+  phantom_fraction             0.0
+  phantom_clusters             0
+  coverage                     0.9902
+  clearance_margin_min_m       0.08
+  rtf_mean                     0.998
+  tilt_max_deg                 8.78
+  wall_offset_p99_m            0.15
+  corridor_free_width_min_m    0.6
+  corridor_free_width_where    [7.5, 3.5]
+  cpu % of one core (mean/max): gz_sim 20.6/79.1, truth_relay 15.4/17.8, cartographer 8.5/13.9, gz_bridge 6.7/7.9

@@ -1,0 +1,9 @@
+test=B9
+world=w2_turns_junctions
+profile=slam
+git=16a7096
+flow=0
+mangle=none
+headless=1
+clock_throttle=0
+procedure exit code 1

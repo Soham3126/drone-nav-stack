@@ -1,0 +1,57 @@
+{
+ "world": "w2_turns_junctions",
+ "alignment": {
+  "x": 0.5,
+  "y": 3.5,
+  "yaw_deg": -0.0
+ },
+ "airborne_s": 120.9,
+ "ate_rmse_m": 0.0196,
+ "ate_max_m": 0.057,
+ "heading_err_max_deg": 0.909,
+ "end_error_m": 0.0042,
+ "lengthwise_max_m": 0.0548,
+ "lengthwise_rms_m": 0.0177,
+ "sideways_max_m": 0.0398,
+ "sideways_p95_m": 0.018,
+ "turns_detected": 4,
+ "heading_after_turn_max_deg": 0.468,
+ "heading_after_turn_deg": [
+  0.468,
+  0.134,
+  0.134,
+  0.07
+ ],
+ "map_occupied_cells": 2167,
+ "maps_seen": 74,
+ "precision": 1.0,
+ "phantom_cells": 0,
+ "phantom_fraction": 0.0,
+ "phantom_clusters": 0,
+ "phantom_cluster_list": [],
+ "visible_wall_cells": 1236,
+ "recall": 0.996,
+ "coverage": 1.0,
+ "tilt_max_deg": 8.33,
+ "wall_offset_p99_m": 0.05,
+ "corridor_free_width_min_m": 0.8,
+ "corridor_free_width_where": [
+  10.5,
+  6.5
+ ],
+ "clearance_margin_min_m": 0.13,
+ "test": "A1.4",
+ "run": "20261112_142716_A1.4_w2_turns_junctions_e7a1f8f__replay_mcd6_n20",
+ "params": {
+  "speed": "0.5",
+  "yaw_mode": "fixed",
+  "laps": "1",
+  "git": "e7a1f8f",
+  "headless": "1",
+  "extra_params": "{}",
+  "replay_of": "20261112_142716_A1.4_w2_turns_junctions_e7a1f8f",
+  "replay_name": "mcd6_n20",
+  "replay_override": "POSE_GRAPH.constraint_builder.max_constraint_distance = 6. POSE_GRAPH.optimize_every_n_nodes = 20"
+ },
+ "pass": true
+}

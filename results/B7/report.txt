@@ -1,0 +1,6 @@
+B7 with flow fusion: False
+takeoff: takeoff accepted | bridge height trim +0.0 cm | height 1.08 m reached in 0.0 s
+slip started: True drift (0.1, 0.0) m/s for 3.0 s from t=99.64
+land: land accepted and confirmed | disarmed after 5.6 s
+(a) hover drift 6.2 cm; (b) lateral 2.7 cm in 15.9 s; (c) followed the false 0.3 m slip by 46.6 cm; (d) moved 5.4 cm after flow loss, modes ['GUIDED']
+B7: PASS

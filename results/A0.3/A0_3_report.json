@@ -1,0 +1,59 @@
+{
+ "flight": {
+  "pattern": "square_3m",
+  "world": "w0_box_room",
+  "speed_m_s": 0.5,
+  "waypoints_total": 7,
+  "waypoints_reached": 7,
+  "ok": true,
+  "origin_ned": [
+   2.9944770336151123,
+   2.9957542419433594,
+   -0.1899999976158142
+  ],
+  "t_takeoff_done": 1794338833.238146,
+  "t_last_waypoint": 1794338862.188606,
+  "duration_s": 41.4
+ },
+ "agreement": {
+  "odom_frame": "world",
+  "pass": true,
+  "samples_airborne": 621,
+  "max_error_m": 0.03,
+  "rms_error_m": 0.013,
+  "best_mapping": "N=+y, E=+x (expected)",
+  "all_mappings": {
+   "N=+y, E=+x (expected)": {
+    "max_m": 0.03,
+    "rms_m": 0.013
+   },
+   "N=+x, E=-y": {
+    "max_m": 4.484,
+    "rms_m": 2.603
+   },
+   "N=-y, E=-x": {
+    "max_m": 6.326,
+    "rms_m": 3.674
+   },
+   "N=-x, E=+y": {
+    "max_m": 4.469,
+    "rms_m": 2.593
+   }
+  }
+ },
+ "truth_zero": {
+  "first_truth_pose": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "pass": true
+ },
+ "rtf": {
+  "mean": 0.992,
+  "headless": true,
+  "pass": true
+ },
+ "pass": true
+}

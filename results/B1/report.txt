@@ -1,0 +1,1 @@
+B1: judged by its own procedure; see result.json in /home/soham/drone_results/20261115_142225_B1_w0_box_room_2a08f6a

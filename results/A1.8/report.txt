@@ -1,0 +1,28 @@
+=== A1.8 w5_maze_loop  20261114_192632_A1.8_w5_maze_loop_ad4bba9
+  ate_rmse_m                   0.1236
+  ate_max_m                    0.2596
+  end_error_m                  0.0094
+  lengthwise_max_m             0.2243
+  sideways_max_m               0.2205
+  heading_err_max_deg          2.565
+  heading_after_turn_max_deg   2.395
+  turns_detected               10
+  precision                    0.9463
+  recall                       0.973
+  phantom_cells                1
+  phantom_fraction             0.00019
+  phantom_clusters             0
+  coverage                     0.9907
+  clearance_margin_min_m       0.08
+  rtf_mean                     0.998
+  tilt_max_deg                 8.75
+  wall_offset_p99_m            0.15
+  corridor_free_width_min_m    0.5
+  corridor_free_width_where    [9.5, 9.5]
+  nav_wall_missing_p99         0.073
+  nav_wall_misplaced_p99       0.093
+  cpu % of one core (mean/max): gz_sim 20.1/77.9, truth_relay 15.9/17.8, cartographer 8.5/13.8, gz_bridge 6.6/8.9
+criteria for A1.8:
+  ok   nav_wall_misplaced_p99            0.093  (needs < 0.1)
+  ok   nav_wall_missing_p99              0.073  (needs < 0.1)
+A1.8: PASS
