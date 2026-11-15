@@ -9,7 +9,7 @@ Built and tested in simulation first, following a team *Navigation Stack Guidebo
 |---|---|---|
 | A: simulator and SLAM | Maze worlds with exact ground truth; Cartographer with measured accuracy | Done: frozen as tag `carto-v1` |
 | B: flight interface | Bridge between ROS and the flight controller; ArduPilot settings for flying without GPS | Done: tag `g3-flight-interface`, one open item (B6) |
-| C: planner and mission | Safe routes, frontier finding, mission logic | Next |
+| C: planner and mission | Safe routes, frontier finding, mission logic | In progress ([guide](docs/tasks/C_planner_and_mission.md)) |
 
 Start here:
 * [`docs/PROJECT_SUMMARY.md`](docs/PROJECT_SUMMARY.md): the whole project on one page
@@ -26,7 +26,7 @@ This repository is the `src/` folder of a ROS 2 workspace: clone it to `~/drone_
 |---|---|
 | `drone_description/` | The drone's body and sensor positions (URDF) |
 | `drone_interfaces/` | Our ROS message and service types (bridge status, flight commands, frontiers) |
-| `drone_sim/` | Maze generator (`tools/make_maze.py`), 16 maze worlds and their true maps, the simulated drone, test tools and **all test scripts** (`tests/A*.py`, `tests/B*.py`) |
+| `drone_sim/` | Maze generator (`tools/make_maze.py`), 31 maze worlds and their true maps, the simulated drone, test tools and **all test scripts** (`tests/A*.py`, `tests/B*.py`) |
 | `drone_slam/` | Cartographer configuration `carto-v1`, launch file, gyro-bias removal, parameter-sweep records |
 | `drone_bringup/` | Launches everything for a profile; ArduPilot parameter files and the Lua fallback script (`params/ardupilot/`) |
 | `drone_bridge/` | The ROS-to-flight-controller bridge (MAVLink) and its 64 unit tests |

@@ -6,7 +6,7 @@
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 RES=${RESULTS_DIR:-$HOME/drone_results}
-TESTS="A0.1 A0.2 A0.3 A0.4 A1.1 A1.2 A1.3 A1.4 A1.5 A1.6 A1.7 A1.8 A1.9 A1.10 A1.11 B1 B2 B3 B4 B5 B6 B7 B8 B9"
+TESTS="A0.1 A0.2 A0.3 A0.4 A1.1 A1.2 A1.3 A1.4 A1.5 A1.6 A1.7 A1.8 A1.9 A1.10 A1.11 B1 B2 B3 B4 B5 B6 B7 B8 B9 C0 C1 C2 C3 C4 C5 C6 C7"
 OUT="$REPO/results"
 rm -rf "$OUT"; mkdir -p "$OUT"
 IDX="$OUT/INDEX.md"

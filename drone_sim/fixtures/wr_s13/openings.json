@@ -1,0 +1,50 @@
+{
+ "world": "wr_s13",
+ "resolution": 0.05,
+ "min_opening_m": 0.55,
+ "rule": "frontier = unknown cell with a free 4-neighbour, 8-connected groups; real_opening = most of its cells are truly free; drone_reachable = some of its cells lie in the space the 0.27 m drone can sweep from the start; passable = real and drone_reachable and size_m >= min_opening_m (the frontiers the explorer must find)",
+ "openings": [
+  {
+   "id": 2,
+   "cells": 58,
+   "size_m": 2.9,
+   "extent_m": 3.087,
+   "centroid": [
+    4.5,
+    0.941
+   ],
+   "truth_free_fraction": 1.0,
+   "real_opening": true,
+   "drone_reachable": true,
+   "passable": true
+  },
+  {
+   "id": 1,
+   "cells": 32,
+   "size_m": 1.6,
+   "extent_m": 2.139,
+   "centroid": [
+    2.35,
+    0.766
+   ],
+   "truth_free_fraction": 1.0,
+   "real_opening": true,
+   "drone_reachable": true,
+   "passable": true
+  },
+  {
+   "id": 3,
+   "cells": 28,
+   "size_m": 1.4,
+   "extent_m": 1.49,
+   "centroid": [
+    1.786,
+    3.75
+   ],
+   "truth_free_fraction": 1.0,
+   "real_opening": true,
+   "drone_reachable": true,
+   "passable": true
+  }
+ ]
+}

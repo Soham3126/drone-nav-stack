@@ -7,6 +7,7 @@ Run from `~/drone_ws/src`. All of them expect the repository at that path and th
 |---|---|
 | `sim_up.sh <world> <profile> [out]` / `sim_down.sh` | Start / stop Gazebo, ArduPilot SITL and ROS in tmux session `sim`. Options by environment: `HEADLESS`, `FLOW`, `MANGLE`, `SLAM`, `GATE`, `CLOCK_THROTTLE` |
 | `run_test.sh <ID> <world> <profile> [timeout]` | One recorded test run: settings, logs, recording, CPU use, report in `~/drone_results/` |
+| `run_c.sh <ID>` | One recorded workstream C test (map files only, no simulator) |
 | `batch.sh <name> "<commands>"` / `batch.sh status` | Run many tests in the background (tmux session `batch`), check progress |
 | `run_b3.sh` ... `run_b9.sh`, `run_final2.sh` | The batches used for B3-B9 and the A regression |
 | `carto_sweep.sh`, `carto_replay.sh`, `replay.launch.py` | Cartographer parameter sweeps on recorded flights (A1.9) |
