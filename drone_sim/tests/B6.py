@@ -50,7 +50,7 @@ def map_x(p):
 
 def main():
     import argparse
-    from b_common import Client, call_setbool, save, wait_for
+    from b_common import Client, FcRecorder, call_setbool, save, wait_for
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
     ap.add_argument('--world', default='w2_turns_junctions')
@@ -59,7 +59,7 @@ def main():
     res = dict(case=case)
     lines = [f'B6 case {case}']
     new_bridge = None
-    with Client() as cl:
+    with Client() as cl, FcRecorder() as fc:
         ok, msg = cl.take_off(1.1)
         lines.append(msg)
         if not ok:
@@ -91,6 +91,7 @@ def main():
             call_setbool(cl, '/pose_gate/pause', False)
         t1 = time.time()
         during = cl.truth_between(t0, t1)
+        fc_during = fc.between(t0, t1)
         if case == 'kill':
             new_bridge = start_bridge(a.out)
             wait_for(lambda: cl.last().fc_connected and (time.time() - cl.status[-1][0]) < 0.5, 60)
@@ -109,6 +110,15 @@ def main():
         mx = sum(p[1] for p in last1) / len(last1)
         my = sum(p[2] for p in last1) / len(last1)
         res['hold_error_m'] = round(math.hypot(mx - cw[0], my - cw[1]), 3)
+    # what the flight controller believed (its NED origin is the start point): holding the carrot in its own
+    # estimate while the true position wanders means dead-reckoning drift, not a control problem
+    fl = [r for r in fc_during if r[0] >= t1 - 1.0]
+    if fl:
+        fn = sum(r[1] for r in fl) / len(fl)
+        fe = sum(r[2] for r in fl) / len(fl)
+        res['fc_belief_hold_error_m'] = round(math.hypot(fn - carrot[0], -fe - carrot[1]), 3)
+        if last1:
+            res['fc_belief_minus_truth_m'] = round(math.hypot(fn + START_W[0] - mx, -fe + START_W[1] - my), 3)
     res['overshoot_past_carrot_m'] = round(max([p[1] - cw[0] for p in during] + [0.0]), 3)
     res['max_sideways_m'] = round(max([abs(p[2] - cw[1]) for p in during] + [0.0]), 3)
     res['completed_path_after'] = bool(arrived)
@@ -132,6 +142,9 @@ def main():
                      f"after 5 s the drone was {res.get('hold_error_m', float('nan'))*100:.1f} cm from it "
                      f"(needs <= 10), overshoot {res['overshoot_past_carrot_m']*100:.1f} cm, sideways "
                      f"{res['max_sideways_m']*100:.1f} cm; path completed afterwards: {res['completed_path_after']}")
+        lines.append(f"     the flight controller believed it was {res.get('fc_belief_hold_error_m', float('nan'))*100:.1f} cm "
+                     f"from the carrot; its estimate was {res.get('fc_belief_minus_truth_m', float('nan'))*100:.1f} cm "
+                     f"off the true position (dead reckoning without a position source)")
     else:
         ok = True
         lines.append(f"pose paused 10 s at x={x_f:.2f} m: EKF reported position lost after "

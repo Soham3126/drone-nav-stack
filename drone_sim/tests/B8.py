@@ -62,15 +62,22 @@ def cycles(cl, fc, res, lines):
             z0 = cl.truth_z0 or 0.0
             hov = [p[3] - z0 for p in cl.truth_between(t_end - 25, t_end)]
             err = sum(hov) / len(hov) - h if hov else float('nan')
+            fh = [-r[3] for r in fc.between(t_end - 25, t_end)]
+            sh = [m.height_m for t, m in cl.status if t_end - 25 <= t <= t_end and not math.isnan(m.height_m)]
+            ekf_h = sum(fh) / len(fh) if fh else float('nan')
+            rf_h = sum(sh) / len(sh) if sh else float('nan')
             climb = [r[3] for r in fc.between(t_arm, t_up + 2)]
             jump = max((abs(b - a) for a, b in zip(climb, climb[1:])), default=float('nan'))
             good = abs(err) < 0.05 and (math.isnan(jump) or jump <= 0.10) and okl
             c = dict(target=h, ok=good, height_error_m=round(err, 3), takeoff_jump_m=round(jump, 3),
+                     ekf_height_m=round(ekf_h, 3), rangefinder_minus_clearance_m=round(rf_h, 3),
                      landed_and_disarmed=okl, ground_rangefinder=rf_ground, land_message=ml)
             res['cycles'].append(c)
             lines.append(f"{'ok  ' if good else 'FAIL'} cycle {k}: target {h} m, true hover {h + err:.3f} m "
                          f"(error {err*100:+.1f} cm), largest FC height step in the climb {jump*100:.1f} cm, "
                          f"landed+disarmed {okl}, rangefinder on the ground {rf_ground}")
+            lines.append(f"       in the hover: flight controller's height {ekf_h:.3f} m, rangefinder - clearance "
+                         f"{rf_h:.3f} m, true {h + err:.3f} m")
             time.sleep(3)
 
 

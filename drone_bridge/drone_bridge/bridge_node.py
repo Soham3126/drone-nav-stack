@@ -72,6 +72,7 @@ class BridgeNode(Node):
         self.origin_lon = P('origin_lon', 149.165237).value
         self.origin_alt = P('origin_alt_m', 584.0).value
         self.takeoff_tol = P('takeoff_tolerance_m', 0.1).value
+        self.pose_timeout = P('pose_timeout_s', 0.3).value          # older poses are never sent (B6)
         self.rf_topic = P('rangefinder_topic', '').value          # unused in simulation now (range_relay.py)
         self.ground_clearance = P('ground_clearance_m', 0.0).value  # rangefinder reading when landed
 
@@ -85,6 +86,9 @@ class BridgeNode(Node):
         self.pose = None                        # (stamp_s, x, y, z, roll, pitch, yaw) in map FLU
         self.reset_counter = 0
         self.pose_buf = PoseBuffer(1.0)
+        self.pose_stale = True
+        self.last_sent_stamp = 0.0
+        self.last_boot_ms = None                # autopilot uptime, to tell a reboot from a link drop
         self.offset = OffsetEstimator(0.1)
         self.carrot = CarrotFollower(self.lookahead)
         self.following = False
@@ -135,13 +139,23 @@ class BridgeNode(Node):
 
     # ------------------------------------------------------------------ MAVLink input
     def on_connect(self, n):
-        """A (re)connected autopilot may have rebooted: forget everything it told us before."""
+        """(Re)connected: forget the autopilot's state until it reports it again. Path following and the frame
+        offset are kept - only a reboot of the autopilot (see _check_reboot) clears them. A companion freeze also
+        ends in a "reconnect" (no heartbeat seen for 5 s), and the path must then simply continue (B6)."""
         with self.lock:
             self.st.update(mode='', custom_mode=-1, armed=False, ekf_flags=0, origin_set=False,
                            height=float('nan'), rf_raw=None, lpos=None, att=None)
+
+    def _check_reboot(self, time_boot_ms):
+        """Autopilot uptime went backwards: it rebooted. Clear everything that belonged to the old session."""
+        if self.last_boot_ms is not None and time_boot_ms + 2000 < self.last_boot_ms:
+            self.get_logger().info('autopilot rebooted: clearing path, hold target and frame offset')
             self.offset = OffsetEstimator(0.1)
-        self.following = False
-        self.hold_target = None
+            self.following = False
+            self.hold_target = None
+            self.carrot.clear()
+            self.takeoff_yaw_ned = None
+        self.last_boot_ms = time_boot_ms
 
     def on_mav(self, m, t_mono):
         t = m.get_type()
@@ -158,6 +172,7 @@ class BridgeNode(Node):
                 self._offset_sample()
             elif t == 'ATTITUDE':
                 st['att'] = (m.roll, m.pitch, m.yaw)
+                self._check_reboot(m.time_boot_ms)
             elif t == 'EKF_STATUS_REPORT':
                 st['ekf_flags'] = m.flags
             elif t == 'DISTANCE_SENSOR':
@@ -232,6 +247,17 @@ class BridgeNode(Node):
         if pz is None or not self.link.connected:
             return
         stamp, x, y, z, r, p, yw = pz
+        # Never repeat an old pose: if the pose source stops (SLAM stalls, topic paused), ArduPilot must see
+        # the ExternalNav stream stop and time out. Repeating the last pose pins the EKF to one place while the
+        # drone moves (B6, first run: the drone flew 6.4 m down the corridor during a 10 s pose pause).
+        age = self.now_s() - stamp
+        if age > self.pose_timeout:
+            self.pose_stale = True
+            return
+        self.pose_stale = False
+        if stamp <= self.last_sent_stamp:
+            return                               # this pose was already sent
+        self.last_sent_stamp = stamp
         roll, pitch, yaw = flu_to_ned_rpy(r, p, yw)
         cov = [float('nan')] + [0.0] * 20       # NaN first element: ArduPilot uses VISO_POS_M_NSE / VISO_YAW_M_NSE
         self.link.send('vision_position_estimate_send', int(stamp * 1e6), x, -y, -z, roll, pitch, yaw,
