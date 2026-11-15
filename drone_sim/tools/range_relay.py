@@ -100,9 +100,11 @@ class Mtf01Sim(Node):
         if self.prev is not None and t > self.prev[0]:
             dt = t - self.prev[0]
             v = ((p.x - self.prev[1]) / dt, (p.y - self.prev[2]) / dt, (p.z - self.prev[3]) / dt)
-            # Gazebo's positions are exact: no smoothing, so the flow is not late (B6: a 50 ms filter here
-            # against EK3_FLOW_DELAY 10 ms gave 6-16 cm estimate drift in 5 s)
-            self.vel_w = v
+            # ~50 ms smoothing: differencing positions over single simulation steps is very noisy (B6 sixth run:
+            # without it the drone wandered up to 1.6 m). The resulting ~50 ms lag is told to the EKF instead
+            # (EK3_FLOW_DELAY 50 in sitl_extnav.parm).
+            a = min(1.0, dt / 0.05)
+            self.vel_w = tuple(self.vel_w[i] + a * (v[i] - self.vel_w[i]) for i in range(3))
         self.prev = (t, p.x, p.y, p.z)
         self.q = (o.x, o.y, o.z, o.w)
 
