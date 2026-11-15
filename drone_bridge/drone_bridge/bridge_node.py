@@ -28,13 +28,12 @@ from drone_interfaces.srv import FlightCommand  # noqa: E402
 from geometry_msgs.msg import PoseStamped  # noqa: E402
 from nav_msgs.msg import Path  # noqa: E402
 from pymavlink import mavutil  # noqa: E402
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup  # noqa: E402
-from rclpy.executors import MultiThreadedExecutor  # noqa: E402
+from rclpy.executors import SingleThreadedExecutor  # noqa: E402
 from rclpy.node import Node  # noqa: E402
 from rclpy.qos import qos_profile_sensor_data  # noqa: E402
 from sensor_msgs.msg import LaserScan  # noqa: E402
 from std_msgs.msg import String, UInt8  # noqa: E402
-from tf2_ros import Buffer, TransformListener  # noqa: E402
+from tf2_msgs.msg import TFMessage  # noqa: E402
 
 from .carrot import CarrotFollower  # noqa: E402
 from .commands import COPTER_GUIDED, MAV_MODE_FLAG_SAFETY_ARMED, CommandRunner  # noqa: E402
@@ -106,11 +105,16 @@ class BridgeNode(Node):
         self.runner = CommandRunner(self.link)
 
         self.add_on_set_parameters_callback(self.on_params)
-        g_timers = MutuallyExclusiveCallbackGroup()
-        g_srv = MutuallyExclusiveCallbackGroup()
+        # Two single-threaded executors instead of one multi-threaded one (B9: rclpy's MultiThreadedExecutor
+        # spent ~90% of the bridge's 45% of a core just scheduling). Timers, subscriptions and TF run on this
+        # node; the command service, whose calls block for seconds (takeoff, land), runs on its own small node
+        # and thread, so it never holds up the pose stream.
+        self.cmd_node = rclpy.create_node('bridge_command')
         if self.pose_source == 'tf':
-            self.tf_buffer = Buffer()
-            self.tf_listener = TransformListener(self.tf_buffer, self)
+            # map -> base_link straight from /tf (Cartographer: provide_odom_frame = false publishes it directly).
+            # A full tf2 listener costs about twice as much CPU at Cartographer's 200 Hz (B9).
+            self.tf_latest = None
+            self.create_subscription(TFMessage, '/tf', self.on_tf, 100)
         else:
             self.create_subscription(PoseStamped, self.pose_topic, self.on_pose, qos_profile_sensor_data)
         if self.reset_topic:
@@ -120,12 +124,12 @@ class BridgeNode(Node):
             self.create_subscription(LaserScan, self.rf_topic, self.on_range, qos_profile_sensor_data)
         self.pub_status = self.create_publisher(BridgeStatus, '/bridge/status', 10)
         self.pub_stats = self.create_publisher(String, '/bridge/link_stats', 10)
-        self.create_service(FlightCommand, '/bridge/command', self.on_command, callback_group=g_srv)
-        self.create_timer(1.0 / self.pose_rate, self.tick_pose, callback_group=g_timers)
-        self.create_timer(0.1, self.tick_follow, callback_group=g_timers)
-        self.create_timer(0.1, self.tick_status, callback_group=g_timers)
-        self.create_timer(1.0, self.tick_1hz, callback_group=g_timers)
-        self.create_timer(5.0, self.tick_stats, callback_group=g_timers)
+        self.cmd_node.create_service(FlightCommand, '/bridge/command', self.on_command)
+        self.create_timer(1.0 / self.pose_rate, self.tick_pose)
+        self.create_timer(0.1, self.tick_follow)
+        self.create_timer(0.1, self.tick_status)
+        self.create_timer(1.0, self.tick_1hz)
+        self.create_timer(5.0, self.tick_stats)
         self.get_logger().info(f'bridge: fc {self.url}, pose from {self.pose_source}'
                                f'{" " + self.pose_topic if self.pose_source == "topic" else ""}, L={self.lookahead} m')
 
@@ -231,10 +235,14 @@ class BridgeNode(Node):
     def on_reset(self, msg):
         self.reset_counter = int(msg.data) % 256
 
+    def on_tf(self, msg):
+        for tr in msg.transforms:
+            if tr.header.frame_id == self.map_frame and tr.child_frame_id == self.base_frame:
+                self.tf_latest = tr
+
     def _pose_from_tf(self):
-        try:
-            tr = self.tf_buffer.lookup_transform(self.map_frame, self.base_frame, rclpy.time.Time())
-        except Exception:  # noqa: BLE001
+        tr = self.tf_latest
+        if tr is None:
             return None
         t, q = tr.transform.translation, tr.transform.rotation
         r, p, y = quat_to_rpy(q.x, q.y, q.z, q.w)
@@ -510,14 +518,19 @@ class BridgeNode(Node):
 def main():
     rclpy.init()
     node = BridgeNode()
-    ex = MultiThreadedExecutor(num_threads=4)
+    ex = SingleThreadedExecutor()
     ex.add_node(node)
+    ex_cmd = SingleThreadedExecutor()
+    ex_cmd.add_node(node.cmd_node)
+    threading.Thread(target=ex_cmd.spin, daemon=True, name='commands').start()
     try:
         ex.spin()
     except KeyboardInterrupt:
         pass
     finally:
         node.link.stop = True
+        ex_cmd.shutdown(timeout_sec=1.0)
+        node.cmd_node.destroy_node()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

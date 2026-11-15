@@ -14,7 +14,7 @@ import os
 
 import yaml
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -101,8 +101,20 @@ def bridge_actions(profile, mangle, gate=False):
             bp.update(pose_topic='/pose_gated')
     else:
         bp.update(pose_source='tf')
+    # Simulation only: Gazebo publishes /clock once per 1 ms physics step, and receiving 1000 messages a second
+    # costs a Python node ~8% of a core (B9 probe). The bridge gets a copy thinned to 100 Hz (C++ throttle);
+    # its timers then tick with 10 ms resolution, which is enough for 30 Hz poses. The real drone has no /clock.
+    remap = []
+    try:
+        get_package_share_directory('topic_tools')
+        acts.append(Node(package='topic_tools', executable='throttle', name='clock_throttle', output='log',
+                         arguments=['messages', '/clock', '100.0', '/clock_100hz']))
+        remap = [('/clock', '/clock_100hz')]
+    except PackageNotFoundError:
+        acts.append(LogInfo(msg='[sim.launch] topic_tools not installed (sudo apt install ros-humble-topic-tools): '
+                                'the bridge receives the full 1 kHz /clock'))
     acts.append(Node(package='drone_bridge', executable='bridge_node', name='bridge', output='screen',
-                     parameters=[bp]))
+                     parameters=[bp], remappings=remap))
     return acts
 
 
