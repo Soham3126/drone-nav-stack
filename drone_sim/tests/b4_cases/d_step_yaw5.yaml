@@ -1,0 +1,3 @@
+# B4: 5 deg yaw step
+step_time: -1.0
+step_yaw_deg: 5.0

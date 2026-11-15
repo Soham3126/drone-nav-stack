@@ -94,6 +94,7 @@ class BridgeNode(Node):
         self.link = MavLink(self.url, self.on_mav, lambda s: self.get_logger().info(s), on_connect=self.on_connect)
         self.runner = CommandRunner(self.link)
 
+        self.add_on_set_parameters_callback(self.on_params)
         g_timers = MutuallyExclusiveCallbackGroup()
         g_srv = MutuallyExclusiveCallbackGroup()
         if self.pose_source == 'tf':
@@ -116,6 +117,16 @@ class BridgeNode(Node):
         self.create_timer(5.0, self.tick_stats, callback_group=g_timers)
         self.get_logger().info(f'bridge: fc {self.url}, pose from {self.pose_source}'
                                f'{" " + self.pose_topic if self.pose_source == "topic" else ""}, L={self.lookahead} m')
+
+    def on_params(self, params):
+        from rcl_interfaces.msg import SetParametersResult
+        for p in params:
+            if p.name == 'lookahead_m':
+                self.lookahead = float(p.value)
+                self.carrot.L = self.lookahead
+                self.carrot.window = 2.0 * self.lookahead + 0.5
+                self.get_logger().info(f'lookahead now {self.lookahead} m')
+        return SetParametersResult(successful=True)
 
     # ------------------------------------------------------------------ helpers
     def now_s(self):

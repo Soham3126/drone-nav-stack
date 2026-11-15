@@ -1,0 +1,4 @@
+# B4: 0.3 m step in x, reset_counter unchanged (step starts on /pose_mangler/step_now)
+step_time: -1.0
+step_x: 0.3
+step_reset: false

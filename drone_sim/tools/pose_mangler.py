@@ -9,6 +9,8 @@ ROS node:
       -p step_time:=30.0 -p step_x:=0.3 -p step_y:=0.0 -p step_yaw_deg:=0.0 -p step_reset:=false \
       -p dropout_start:=-1.0 -p dropout_duration:=0.0
 Times (drift_start, step_time, dropout_start) are seconds since the first input message.
+Services /pose_mangler/step_now and /pose_mangler/drift_now (std_srvs/Trigger) start the configured step
+or drift at the moment of the call instead (tests B4, B7 call them once the drone is hovering).
 The node also publishes /pose_mangler/reset_counter (std_msgs/UInt8): incremented by a step with
 step_reset:=true, so the bridge can tell ArduPilot that the pose jumped on purpose.
 """
@@ -84,6 +86,7 @@ def main():
     from geometry_msgs.msg import PoseStamped
     from rclpy.node import Node
     from std_msgs.msg import UInt8
+    from std_srvs.srv import Trigger
 
     class ManglerNode(Node):
         def __init__(self):
@@ -103,7 +106,24 @@ def main():
             self.pub_reset = self.create_publisher(UInt8, '/pose_mangler/reset_counter', 10)
             self.create_subscription(PoseStamped, p['input'], self.cb, 10)
             self.create_timer(0.005, self.flush)
+            self.t_rel = 0.0
+            self.create_service(Trigger, '/pose_mangler/step_now', self.srv_step)
+            self.create_service(Trigger, '/pose_mangler/drift_now', self.srv_drift)
             self.get_logger().info(f'pose_mangler {p}')
+
+        def srv_step(self, req, res):
+            _, sx, sy, syaw, reset = self.m.step
+            self.m.step = (self.t_rel, sx, sy, syaw, reset)
+            res.success, res.message = True, f'step x={sx} y={sy} yaw={math.degrees(syaw):.1f} deg at t={self.t_rel:.2f}'
+            self.get_logger().info(res.message)
+            return res
+
+        def srv_drift(self, req, res):
+            _, dur, vx, vy = self.m.drift
+            self.m.drift = (self.t_rel, dur, vx, vy)
+            res.success, res.message = True, f'drift ({vx}, {vy}) m/s for {dur} s from t={self.t_rel:.2f}'
+            self.get_logger().info(res.message)
+            return res
 
         def now(self):
             return self.get_clock().now().nanoseconds * 1e-9
@@ -115,6 +135,7 @@ def main():
             q = msg.pose.orientation
             yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
             self.last_msg = msg
+            self.t_rel = t - self.t0
             p = msg.pose.position
             self.m.push(t - self.t0, p.x, p.y, p.z, yaw, (yaw, (q.x, q.y, q.z, q.w)))
 
