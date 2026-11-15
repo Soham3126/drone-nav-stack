@@ -9,9 +9,9 @@ How to run any of them: `scripts/run_c.sh <ID>` from `~/drone_ws/src` (results i
 | Test | What it checks | Files | Result |
 |---|---|---|---|
 | C0 | Test maps for every world: full, partial (with real frontiers), Cartographer-like; each loads in Nav2's map_server exactly | `drone_sim/tools/make_fixtures.py`, `drone_sim/fixtures/`, `tests/C0.py` | **PASS**: 29 worlds, 87 of 87 fixtures identical cell by cell |
-| C1 | Planner: safe, centred paths where they exist, refusal where they don't; planning time | `drone_nav/config/planner.yaml`, `tests/C1.py`, `tests/c1_cases.py` | pending |
-| C2 | Cost-map threshold 65 vs Nav2's default 100 on Cartographer-like maps | - | not started |
-| C3 | Frontier detection: every real opening, nothing else | - | not started |
+| C1 | Planner: safe, centred paths where they exist, refusal where they don't; planning time | `drone_nav/config/planner.yaml`, `tests/C1.py`, `tests/c1_cases.py` | **PASS** 36/36: corridors centred within 2.6 cm, 0.45 m gap refused, 0.60 m passed, W8 planning p95 18.6 ms |
+| C2 | Cost-map threshold 65 vs Nav2's default 100 on Cartographer-like maps | `tests/C2.py` | pending |
+| C3 | Frontier detection: every real opening, nothing else, under 50 ms | `drone_frontier/`, `tests/C3.py` | pending (offline check of the search code: 116/116 fixtures, 0 false, max 2.8 ms) |
 | C4-C6 | Mission brain on a fast stand-in drone; 100 random mazes; helper failures | - | not started |
 | C7 | Timing of the decision layer | - | not started |
 
@@ -29,6 +29,14 @@ How to run any of them: `scripts/run_c.sh <ID>` from `~/drone_ws/src` (results i
 Files are in map_server's raw mode (pixel = value 0-100, 255 = unknown), map frame = world frame. They are
 deterministic: re-running the script gives the same files.
 
+## Frontier server (`drone_frontier`)
+
+`frontier_server` reads `/map` and the drone's position (TF map -> base_link), and once a second publishes
+`/frontiers` (cheapest first), RViz markers on `/frontiers/markers` and its own search time on
+`/frontiers/search_ms`. The search (`frontier_core.py`, no ROS, 9 unit tests) is explore_lite's algorithm:
+convert the map to exact free/wall/unknown, keep the free space reachable from the drone, frontier cells = unknown
+cells next to it, 8-connected groups, drop groups under 0.55 m, cost = 3 x distance - 1 x size.
+
 ## Differences from the book (Humble)
 
 * Nav2 Humble's ComputePathToPose returns no error code (205-208 arrived in a later Nav2): a failure is an aborted
@@ -38,6 +46,13 @@ deterministic: re-running the script gives the same files.
 * Clearance along a path is judged with a tolerance of one map cell (0.05 m), because the map is drawn in 5 cm cells.
 * Paths on partial maps are judged against the walls the partial map shows; their clearance to the true walls is
   reported beside it (see the finding below).
+* The frontier search is written in Python with numpy/scipy (whole-map operations) instead of copying explore_lite's
+  C++ files: same algorithm, no C++ build, and a 320 x 320 map takes about 3 ms.
+* Frontier server `free_threshold` 65 instead of 25. Cartographer's free cells in our simulation sit at 40-49
+  (workstream A), so with 25 almost all explored space would count as unknown; and the planner's cost map already
+  treats every observed value below 65 as free - the two must agree on what "free" means. C3 records what 25 does.
+* C2 judges wall cells "blocked" (wall or too close to one for the drone's centre) and reports "lethal" beside it:
+  with walls drawn at 60-95, one wall cell in seven is below 65, but its neighbours still close it off.
 * "recorded" fixtures (final maps from workstream A's recordings in `~/drone_replay_bags`) are not made yet.
 
 ## Findings
