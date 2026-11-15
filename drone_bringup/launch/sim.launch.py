@@ -65,7 +65,8 @@ def setup(context):
                                              'use_sim_time': True}]))
         slam_args.update(scan_topic='/scan_gated', imu_topic='/imu_gated')
     if profile in ('truth', 'slam', 'full'):
-        actions += bridge_actions(profile, LaunchConfiguration('mangle').perform(context), gate)
+        throttle = LaunchConfiguration('clock_throttle').perform(context).lower() in ('1', 'true', 'yes')
+        actions += bridge_actions(profile, LaunchConfiguration('mangle').perform(context), gate, throttle)
     if slam:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(
@@ -74,7 +75,7 @@ def setup(context):
     return actions
 
 
-def bridge_actions(profile, mangle, gate=False):
+def bridge_actions(profile, mangle, gate=False, throttle=True):
     """The bridge, fed by ground truth (truth profile, optionally through pose_mangler and/or a pausable
     pose gate) or by Cartographer's TF (slam, full); plus the rangefinder relay (the simulated MTF-01P,
     on its own MAVLink link like a sensor wired to the flight controller)."""
@@ -106,13 +107,15 @@ def bridge_actions(profile, mangle, gate=False):
     # its timers then tick with 10 ms resolution, which is enough for 30 Hz poses. The real drone has no /clock.
     remap = []
     try:
+        if not throttle:
+            raise PackageNotFoundError('clock_throttle:=false')
         get_package_share_directory('topic_tools')
         acts.append(Node(package='topic_tools', executable='throttle', name='clock_throttle', output='log',
                          arguments=['messages', '/clock', '100.0', '/clock_100hz']))
         remap = [('/clock', '/clock_100hz')]
     except PackageNotFoundError:
-        acts.append(LogInfo(msg='[sim.launch] topic_tools not installed (sudo apt install ros-humble-topic-tools): '
-                                'the bridge receives the full 1 kHz /clock'))
+        acts.append(LogInfo(msg='[sim.launch] no clock throttle (clock_throttle:=false, or topic_tools not installed: '
+                                'sudo apt install ros-humble-topic-tools): the bridge receives the full 1 kHz /clock'))
     acts.append(Node(package='drone_bridge', executable='bridge_node', name='bridge', output='screen',
                      parameters=[bp], remappings=remap))
     return acts
@@ -122,6 +125,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('profile', default_value='gps'),
         DeclareLaunchArgument('slam', default_value='true'),
+        DeclareLaunchArgument('clock_throttle', default_value='true'),
         DeclareLaunchArgument('world', default_value='w0_box_room'),
         DeclareLaunchArgument('out_dir', default_value=''),
         DeclareLaunchArgument('mangle', default_value='none'),
