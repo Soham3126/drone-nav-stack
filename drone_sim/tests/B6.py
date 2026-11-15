@@ -5,7 +5,8 @@ One case per run (env B6_CASE):
   freeze  midway, the bridge is frozen (kill -STOP) for 5 s, then resumed (kill -CONT)
   kill    midway, the bridge is killed (kill -9); after 5 s a new bridge is started and the rest of
           the path is sent again
-  pose    midway, only the pose stream is paused for 10 s (stream_gate.py; needs GATE=1)
+  pose       midway, only the pose stream is paused for 5 s (stream_gate.py; needs GATE=1)
+  pose_long  the same for 15 s: longer than ArduPilot's 10 s position timeout (documented only)
     B6_CASE=freeze scripts/run_test.sh B6 w2_turns_junctions truth 600
     B6_CASE=pose GATE=1 scripts/run_test.sh B6 w2_turns_junctions truth 600
 All cases x 2:  scripts/batch.sh b6 "scripts/run_b6.sh"
@@ -84,17 +85,17 @@ def main():
         elif case == 'kill':
             os.kill(pid, signal.SIGKILL)
             time.sleep(5)
-        elif case == 'pose':
+        elif case in ('pose', 'pose_long'):
             okp, mp = call_setbool(cl, '/pose_gate/pause', True)
             lines.append(f'pose paused: {okp} {mp}')
-            time.sleep(10)
+            time.sleep(5 if case == 'pose' else 15)
             call_setbool(cl, '/pose_gate/pause', False)
         t1 = time.time()
         during = cl.truth_between(t0, t1)
         fc_during = fc.between(t0, t1)
         # the target the flight controller was really holding (its NED frame = map frame at the start, y flipped)
         tg = [r for r in fc.targets if t1 - 2.0 <= r[0] <= t1]
-        texts_after = [(round(t - t0, 1), x) for t, x in fc.texts if t0 - 1 <= t <= t1 + 15]
+
         if case == 'kill':
             new_bridge = start_bridge(a.out)
             wait_for(lambda: cl.last().fc_connected and (time.time() - cl.status[-1][0]) < 0.5, 60)
@@ -104,6 +105,7 @@ def main():
         else:
             arrived = wait_for(lambda: cl.last().path_arrived, 60, period=0.05)
         sts = [(t, m) for t, m in cl.status if t0 - 2 <= t <= t1 + 5]
+        texts_after = [(round(t - t0, 1), x) for t, x in fc.texts if t0 - 1 <= t]   # after the path, incl. switch-back
         okl, ml, _ = cl.command('land')
         lines.append(f'land: {ml}')
 
@@ -133,7 +135,7 @@ def main():
     res['overshoot_past_carrot_m'] = round(max([p[1] - cw[0] for p in during] + [0.0]), 3)
     res['max_sideways_m'] = round(max([abs(p[2] - cw[1]) for p in during] + [0.0]), 3)
     res['completed_path_after'] = bool(arrived)
-    if case == 'pose':
+    if case in ('pose', 'pose_long'):
         lost = [t - t0 for t, m in sts if t >= t0 and not m.ekf_position_ok]
         res['ekf_position_lost_after_s'] = round(lost[0], 1) if lost else None
         res['modes_seen'] = sorted({m.mode for _, m in sts})
@@ -147,7 +149,7 @@ def main():
         except Exception:  # noqa: BLE001
             pass
 
-    if case in ('freeze', 'kill'):
+    if case in ('freeze', 'kill', 'pose'):
         ok = res.get('hold_error_m') is not None and res['hold_error_m'] <= 0.10 and res['completed_path_after']
         lines.append(f"{'ok  ' if ok else 'FAIL'} bridge {case} at x={x_f:.2f} m: last carrot ({res['carrot_source']}) "
                      f"x={carrot[0]:.2f} y={carrot[1]:+.2f}; "
@@ -159,7 +161,7 @@ def main():
                      f"off the true position (dead reckoning without a position source)")
     else:
         ok = True
-        lines.append(f"pose paused 10 s at x={x_f:.2f} m: EKF reported position lost after "
+        lines.append(f"pose paused 15 s at x={x_f:.2f} m: EKF reported position lost after "
                      f"{res['ekf_position_lost_after_s']} s; modes {res['modes_seen']}; drone moved "
                      f"{(res['drift_during_pause_m'] or 0)*100:.1f} cm along the corridor during the pause "
                      f"(hold error {res.get('hold_error_m', float('nan'))*100:.1f} cm from the last carrot); "
