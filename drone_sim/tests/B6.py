@@ -92,6 +92,7 @@ def main():
         t1 = time.time()
         during = cl.truth_between(t0, t1)
         fc_during = fc.between(t0, t1)
+        texts_after = [(round(t - t0, 1), x) for t, x in fc.texts if t0 - 1 <= t <= t1 + 15]
         if case == 'kill':
             new_bridge = start_bridge(a.out)
             wait_for(lambda: cl.last().fc_connected and (time.time() - cl.status[-1][0]) < 0.5, 60)
@@ -119,6 +120,7 @@ def main():
         res['fc_belief_hold_error_m'] = round(math.hypot(fn - carrot[0], -fe - carrot[1]), 3)
         if last1:
             res['fc_belief_minus_truth_m'] = round(math.hypot(fn + START_W[0] - mx, -fe + START_W[1] - my), 3)
+    res['autopilot_messages'] = texts_after
     res['overshoot_past_carrot_m'] = round(max([p[1] - cw[0] for p in during] + [0.0]), 3)
     res['max_sideways_m'] = round(max([abs(p[2] - cw[1]) for p in during] + [0.0]), 3)
     res['completed_path_after'] = bool(arrived)
@@ -152,6 +154,8 @@ def main():
                      f"{(res['drift_during_pause_m'] or 0)*100:.1f} cm along the corridor during the pause "
                      f"(hold error {res.get('hold_error_m', float('nan'))*100:.1f} cm from the last carrot); "
                      f"path completed afterwards: {res['completed_path_after']}")
+    for t, x in texts_after:
+        lines.append(f"     ArduPilot at {t:+.1f} s: {x}")
     save(a.out, 'B6', res, ok and okl, lines)
     return 0 if ok and okl else 1
 

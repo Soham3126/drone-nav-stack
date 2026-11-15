@@ -20,6 +20,8 @@ case "$PROFILE" in
   truth|slam|full) PARMS="$PARMS --add-param-file=$P/sitl_extnav.parm" ;;
   *) echo "unknown profile $PROFILE"; exit 1 ;;
 esac
+# B6: ArduPilot's own fallback script (flow while our position is missing) runs from <run dir>/scripts
+if [ "$PROFILE" != gps ]; then mkdir -p "$OUT/scripts" && cp "$P"/lua/*.lua "$OUT/scripts/"; fi
 [ "${FLOW:-0}" = 1 ] && PARMS="$PARMS --add-param-file=$P/sitl_flow.parm"
 GZ_ARGS="-v3 -r"; [ "${HEADLESS:-1}" = 1 ] && GZ_ARGS="$GZ_ARGS -s"
 

@@ -221,6 +221,7 @@ class FcRecorder:
         self.rows = []
         self.stop = False
         self.yaw = float('nan')
+        self.texts = []           # (t_wall, STATUSTEXT) from the autopilot
 
     def __enter__(self):
         self.th = threading.Thread(target=self.run, daemon=True)
@@ -243,10 +244,12 @@ class FcRecorder:
             if time.time() - t_hb > 1.0:
                 gcs_heartbeat(c)
                 t_hb = time.time()
-            m = c.recv_match(type=['LOCAL_POSITION_NED', 'ATTITUDE'], blocking=True, timeout=0.5)
+            m = c.recv_match(type=['LOCAL_POSITION_NED', 'ATTITUDE', 'STATUSTEXT'], blocking=True, timeout=0.5)
             if m is None or m.get_srcComponent() != 1:
                 continue
-            if m.get_type() == 'ATTITUDE':
+            if m.get_type() == 'STATUSTEXT':
+                self.texts.append((time.time(), str(m.text).strip()))
+            elif m.get_type() == 'ATTITUDE':
                 self.yaw = m.yaw
             else:
                 self.rows.append((time.time(), m.x, m.y, m.z, self.yaw))
