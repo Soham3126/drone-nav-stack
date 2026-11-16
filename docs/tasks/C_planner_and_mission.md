@@ -12,8 +12,9 @@ How to run any of them: `scripts/run_c.sh <ID>` from `~/drone_ws/src` (results i
 | C1 | Planner: safe, centred paths where they exist, refusal where they don't; planning time | `drone_nav/config/planner.yaml`, `tests/C1.py`, `tests/c1_cases.py` | **PASS** 36/36: corridors centred within 2.6 cm, 0.45 m gap refused, 0.60 m passed, W8 planning p95 18.6 ms |
 | C2 | Cost-map threshold 65 vs Nav2's default 100 on Cartographer-like maps | `tests/C2.py` | **PASS**: at 65 every wall blocked (100 %), 0 false walls, 0 leaks; at 100 all walls gone (142,520 leak cells) |
 | C3 | Frontier detection: every real opening, nothing else, under 50 ms | `drone_frontier/`, `tests/C3.py` | **PASS**: every passable opening found in 116 fixtures, 0 false frontiers, max 3.6 ms on 320 x 320; with the book's threshold 25: frontiers on 29 of 29 fully explored maps |
-| C4 | Mission brain on the stub: 7 worlds x 10 start poses must explore >= 98 %, return within 0.3 m, land, no contacts, calm goal switching | `drone_mission/`, `drone_sim/tools/stub_world.py`, `tests/C4.py`, `tests/c4_one.py` | **PASS** 70/70 (20261116_160045): coverage 100 %, 0 contacts, home within 0.15 m; median mission 243-394 s, W8 775 s (longest 906 s of 1200) |
-| C5-C6 | 100 random mazes; helper failures | - | not started |
+| C4 | Mission brain on the stub: 7 worlds x 10 start poses must explore >= 98 %, return within 0.3 m, land, no contacts, calm goal switching | `drone_mission/`, `drone_sim/tools/stub_world.py`, `tests/C4.py`, `tests/c4_one.py` | **PASS** 70/70 (20261116_160045): coverage 100 %, 0 contacts, home within 0.15 m; median mission 243-394 s, W8 775 s (longest 906 s of 1200); confirmed after the C5 fix: **PASS** 70/70 (20261116_192805), W8 median 827 s, longest 937 s |
+| C5 | 100 random mazes (wr_s1-100: 8-15 m, corridors 1.0-1.5 m, rooms 0-6, loops 0-2), once each: >= 97 complete, every failure classified | `tests/C5.py` (mazes 21-100 generated on demand, not in git) | **PASS 100/100** (20261116_183506): exploration 2.06 s/m2 median, 3.01 s/m2 p90 (the baseline for frontier scoring); missions median 324 s, longest 814 s. First run 99/100 (wr_s5 at 72 %, fixed: see below) |
+| C6 | Helper failures (fault injection) | - | not started |
 | C7 | Timing of the decision layer | - | not started |
 
 ## Fixtures (C0)
@@ -108,6 +109,11 @@ Smac 2D, without ROS: this is how the brain's logic was developed (35 offline mi
     update_frequency is now 5 Hz, and a frontier's FIRST "no path" blacklists it for 6 s, not 30 s;
   - the return home retries for up to 300 s (escape, re-plan, points on the way home, wait 1 s) instead of
     5 instant attempts: in one ROS run all 5 were refused within 0.15 s and the drone stopped 5 m from home;
+  - C5 wr_s5 (DONE at 72 % coverage): a long frontier ran from the room the drone was in down a strip of free
+    cells the LiDAR had seen diagonally down a corridor; its middle cell was on that strip, too narrow to plan
+    along, so the brain approached it, failed 3 times and dropped the whole frontier. Now, when a frontier's
+    middle cannot be planned to, its nearest point to the drone (already in /frontiers) is tried first.
+    Offline: wr_s5 100 % (reproduced the 72 % before); all 100 mazes pass, longest mission 1093 s -> 882 s;
   - "A -> B -> A" counts only real changes of mind (B still an open frontier when the drone went back to A).
 * First ROS runs of C4 (lessons): the pre-flight "map present" check needs only 20 % of the 2 m square around the
   drone known (walls hide the rest); rclpy refuses one line of code logging at two severities (the brain's

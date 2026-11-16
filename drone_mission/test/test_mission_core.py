@@ -208,3 +208,19 @@ def test_return_home_survives_a_few_planner_refusals():
     io.map_grid = lambda: None
     m, final = run(io)
     assert final == 'DONE' and abs(io.p[0]) < 0.3
+
+
+def test_unreachable_middle_falls_back_to_the_frontiers_nearest_point():
+    # a long frontier whose middle (6, 0) cannot be planned to, but whose nearest point (2, 0) can
+    seen = {'x': False}
+
+    def frontiers(t, p):
+        if abs(p[0] - 2.0) < 0.05:
+            seen['x'] = True
+        return [] if seen['x'] else [dict(middle=(6.0, 0.0), centroid=(6.0, 0.0), nearest=(2.0, 0.0), cost=1.0,
+                                          size_m=5.0)]
+    io = Fake(frontiers, plan_ok=lambda g: tuple(g) != (6.0, 0.0))
+    io.map_grid = lambda: None
+    m, final = run(io)
+    assert final == 'DONE' and seen['x']
+    assert not [d for _, e, d in io.events if e == 'blacklist']

@@ -147,7 +147,8 @@ class OfflineIface:
             self.snap_t = self.s.t
             self.next_map = self.s.t + 1.0
             fr, _ = search(self.snap, RES, self.s.map_origin(), self.s.pose_map(), FParams())
-            self.fr = [dict(middle=f.middle, centroid=f.centroid, cost=f.cost, size_m=f.size_m) for f in fr]
+            self.fr = [dict(middle=f.middle, centroid=f.centroid, nearest=f.nearest, cost=f.cost, size_m=f.size_m)
+                       for f in fr]
             self.fseq += 1
             self.ft = self.s.t
 

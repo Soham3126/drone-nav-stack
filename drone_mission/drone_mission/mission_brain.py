@@ -222,8 +222,8 @@ class MissionBrain(Node):
         self.status_t = self.get_clock().now().nanoseconds * 1e-9
 
     def on_frontiers(self, m):
-        self.fr = [dict(middle=(f.middle.x, f.middle.y), centroid=(f.centroid.x, f.centroid.y), cost=f.cost,
-                        size_m=f.size_m) for f in m.frontiers]
+        self.fr = [dict(middle=(f.middle.x, f.middle.y), centroid=(f.centroid.x, f.centroid.y),
+                        nearest=(f.nearest.x, f.nearest.y), cost=f.cost, size_m=f.size_m) for f in m.frontiers]
         self.fseq += 1
         self.fr_t = self.get_clock().now().nanoseconds * 1e-9
 

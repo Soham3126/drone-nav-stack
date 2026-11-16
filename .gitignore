@@ -6,3 +6,10 @@ __pycache__/
 /log/
 *.mcap
 *.db3
+# C5 random mazes 21-100: generated on demand by tests/C5.py (make_maze.py --random, same seed = same maze)
+drone_sim/maps/wr_s[2-9][1-9]/
+drone_sim/maps/wr_s[3-9]0/
+drone_sim/maps/wr_s100/
+drone_sim/worlds/wr_s[2-9][1-9].sdf
+drone_sim/worlds/wr_s[3-9]0.sdf
+drone_sim/worlds/wr_s100.sdf

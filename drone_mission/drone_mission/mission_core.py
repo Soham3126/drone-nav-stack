@@ -321,6 +321,12 @@ class MissionCore:
         for f in order:
             path = self.io.plan(f['middle'])
             self.stats.plans += 1
+            near = f.get('nearest')
+            if not path and near is not None and dist(near, f['middle']) > self.p.goal_reached_m:
+                # a long frontier's middle can lie where the drone cannot go (e.g. on a strip the LiDAR saw
+                # down a corridor at an angle) while the part nearest the drone is easy to reach: go there
+                path = self.io.plan(near)
+                self.stats.plans += 1
             if not path:
                 path = self.approach(f['middle'], pose)
             if path:
