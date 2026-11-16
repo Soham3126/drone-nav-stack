@@ -11,7 +11,8 @@ It provides exactly what the decision layer uses from those parts:
   /bridge/follow_path          paths to follow (the bridge's carrot follower, lookahead 0.6 m)
   /stub/metrics                JSON once a second: coverage, contacts, distance flown, position
 Parameters: world (e.g. w3_tree_maze), start_index (0 = the world's own start; others: seeded lattice cells),
-speed_factor (simulated seconds per real second), seed.
+speed_factor (simulated seconds per real second), seed; C6 faults: fault_arm_refuse (bool), fault_status_stop_s
+(simulated time from which /bridge/status is no longer published; -1 = never).
 """
 import json
 import os
@@ -52,6 +53,9 @@ class StubWorld(Node):
         self.loop_hz = float(P('loop_hz', 100.0).value)
         start = start_poses(world, idx + 1, seed=seed)[idx]
         self.core = StubCore(world, start_xy=start, seed=seed)
+        # C6 fault injection: refuse the arm command; stop publishing /bridge/status from this simulated time
+        self.core.fault_arm_refuse = bool(P('fault_arm_refuse', False).value)
+        self.status_stop_s = float(P('fault_status_stop_s', -1.0).value)
         self.lock = threading.Lock()
         tl = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_clock = self.create_publisher(Clock, '/clock', 10)
@@ -117,7 +121,7 @@ class StubWorld(Node):
         tr.transform.translation.x, tr.transform.translation.y, tr.transform.translation.z = x, y, self.core.z
         tr.transform.rotation.w = 1.0
         self.tf.sendTransform(tr)
-        if t >= self.next_status:
+        if t >= self.next_status and not (0.0 <= self.status_stop_s <= t):
             self.next_status = t + 0.1
             m = BridgeStatus()
             m.header.stamp = st

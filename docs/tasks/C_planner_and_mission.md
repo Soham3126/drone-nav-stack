@@ -14,7 +14,7 @@ How to run any of them: `scripts/run_c.sh <ID>` from `~/drone_ws/src` (results i
 | C3 | Frontier detection: every real opening, nothing else, under 50 ms | `drone_frontier/`, `tests/C3.py` | **PASS**: every passable opening found in 116 fixtures, 0 false frontiers, max 3.6 ms on 320 x 320; with the book's threshold 25: frontiers on 29 of 29 fully explored maps |
 | C4 | Mission brain on the stub: 7 worlds x 10 start poses must explore >= 98 %, return within 0.3 m, land, no contacts, calm goal switching | `drone_mission/`, `drone_sim/tools/stub_world.py`, `tests/C4.py`, `tests/c4_one.py` | **PASS** 70/70 (20261116_160045): coverage 100 %, 0 contacts, home within 0.15 m; median mission 243-394 s, W8 775 s (longest 906 s of 1200); confirmed after the C5 fix: **PASS** 70/70 (20261116_192805), W8 median 827 s, longest 937 s |
 | C5 | 100 random mazes (wr_s1-100: 8-15 m, corridors 1.0-1.5 m, rooms 0-6, loops 0-2), once each: >= 97 complete, every failure classified | `tests/C5.py` (mazes 21-100 generated on demand, not in git) | **PASS 100/100** (20261116_183506): exploration 2.06 s/m2 median, 3.01 s/m2 p90 (the baseline for frontier scoring); missions median 324 s, longest 814 s. First run 99/100 (wr_s5 at 72 %, fixed: see below) |
-| C6 | Helper failures (fault injection) | - | not started |
+| C6 | Helper failures, each 3 times: planner refuses the chosen frontier; frontier behind a 0.45 m gap (W7); arm refused; /frontiers silent 10 s; /bridge/status stops | `tests/C6.py`, `tools/fault_planner.py` (planner relay), stub faults `fault_arm_refuse`, `fault_status_stop_s`, mission brain `planner_action` | **PASS** 15/15 (20261116_212814); planner refusal handled by blacklist 2x, by approach 1x; 1 graze in the 0.60 m gap (not judged, see below) |
 | C7 | Timing of the decision layer | - | not started |
 
 ## Fixtures (C0)
@@ -114,6 +114,12 @@ Smac 2D, without ROS: this is how the brain's logic was developed (35 offline mi
     along, so the brain approached it, failed 3 times and dropped the whole frontier. Now, when a frontier's
     middle cannot be planned to, its nearest point to the drone (already in /frontiers) is tried first.
     Offline: wr_s5 100 % (reproduced the 72 % before); all 100 mazes pass, longest mission 1093 s -> 882 s;
+  - C6 judging (decided 2026-11-16, "follow the book"): wall contacts are reported, not judged. W7's 0.60 m gap
+    leaves the 0.54 m drone 3 cm a side; passing it the stub drone came within 2 cm in every offline run and
+    grazed by 3-4 cm in one ROS run. Known limitation: the drone may lightly touch the sides of a gap less than
+    ~0.66 m wide (C1 still expects a path through 0.60 m, as the book does). Revisit with real flight data.
+    A planner refusal counts as handled if the frontier is blacklisted OR got round with approach points, with
+    another goal flown within 20 s (1 of 3 ROS runs went round it: the brain's extra "approach" recovery);
   - "A -> B -> A" counts only real changes of mind (B still an open frontier when the drone went back to A).
 * First ROS runs of C4 (lessons): the pre-flight "map present" check needs only 20 % of the 2 m square around the
   drone known (walls hide the rest); rclpy refuses one line of code logging at two severities (the brain's

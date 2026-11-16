@@ -55,7 +55,8 @@ class StubCore:
         self.hold = None                                   # world (x, y) to hold
         self.next_scan = 0.0
         self.contacts, self.in_contact, self.min_clear = 0, False, 9.0
-        self.contact_log = []          # one entry per contact: where, how deep, was the wall in the map yet
+        self.contact_log = []
+        self.fault_arm_refuse = False  # C6: the arm command is refused          # one entry per contact: where, how deep, was the wall in the map yet
         self.flown = 0.0
         self.angles = np.linspace(0, 2 * math.pi, rays, endpoint=False)
         self.steps = np.arange(0.0, lidar_range, RES * 0.5)
@@ -82,6 +83,8 @@ class StubCore:
             self.mode = 'GUIDED'
             return True, 'mode GUIDED'
         if name == 'arm':
+            if self.fault_arm_refuse:                    # C6 fault injection
+                return False, 'PreArm: injected fault (C6)'
             if self.mode != 'GUIDED':
                 return False, 'arm refused: not in GUIDED'
             self.armed = True

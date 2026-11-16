@@ -203,7 +203,9 @@ class MissionBrain(Node):
             rclpy.parameter.Parameter('use_sim_time', value=self.get_parameter('use_sim_time').value)])
         self.io_exec = SingleThreadedExecutor()
         self.io_exec.add_node(self.io_node)
-        self.planner = ActionClient(self.io_node, ComputePathToPose, '/compute_path_to_pose')
+        # the planner's action name (C6 puts a fault-injecting relay in between)
+        self.planner = ActionClient(self.io_node, ComputePathToPose,
+                                    P('planner_action', '/compute_path_to_pose').value)
         self.cmd = self.io_node.create_client(FlightCommand, '/bridge/command')
         self.create_service(Trigger, '/mission/start', self.on_start, callback_group=cb)
         self.create_service(Trigger, '/mission/abort', self.on_abort, callback_group=cb)

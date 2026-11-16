@@ -10,6 +10,7 @@ import argparse
 import json
 import math
 import os
+import signal
 import sys
 import time
 
@@ -47,6 +48,11 @@ def main():
     ap.add_argument('--speed', type=float, default=5.0)
     ap.add_argument('--limit', type=float, default=1200.0, help='simulated seconds (book: 20 min)')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--fault', default='none',
+                    choices=['none', 'plan_fail', 'arm_refuse', 'frontier_silence', 'status_stop'],
+                    help='C6 fault injection (the 0.45 m gap fault is a world: w7_gaps)')
+    ap.add_argument('--fault_t', type=float, default=60.0, help='simulated time the fault starts')
+    ap.add_argument('--fault_len', type=float, default=10.0, help='frontier_silence: how long (simulated s)')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     params, _ = planner_params(a.out)
@@ -59,14 +65,28 @@ def main():
     events, metrics, state = [], {}, {'s': ''}
     t_wall0 = time.time()
     with Procs(a.out) as procs:
+        stub_faults = ''
+        if a.fault == 'arm_refuse':
+            stub_faults = ' -p fault_arm_refuse:=true'
+        elif a.fault == 'status_stop':
+            stub_faults = f' -p fault_status_stop_s:={a.fault_t}'
         procs.start('stub_world', f'ros2 run drone_sim stub_world.py --ros-args -p world:={a.world} '
-                                  f'-p start_index:={a.index} -p speed_factor:={a.speed} -p seed:={a.seed}')
+                                  f'-p start_index:={a.index} -p speed_factor:={a.speed} -p seed:={a.seed}'
+                                  + stub_faults)
+        brain_args = ''
+        if a.fault == 'plan_fail':
+            procs.start('fault_planner', f'ros2 run drone_sim fault_planner.py --ros-args -p use_sim_time:=true '
+                                         f'-p fail_after_s:={a.fault_t} '
+                                         f'-p record:={os.path.join(a.out, "fault_planner.json")}')
+            brain_args = ' -p planner_action:=/c6/compute_path_to_pose'
         procs.start('planner_server', f'ros2 run nav2_planner planner_server --ros-args --params-file {params}')
         procs.start('lifecycle', "ros2 run nav2_lifecycle_manager lifecycle_manager --ros-args "
                                  "-r __node:=lifecycle_manager_c4 -p autostart:=true -p use_sim_time:=true "
                                  "-p \"node_names:=['planner_server']\"")
-        procs.start('frontier_server', 'ros2 run drone_frontier frontier_server --ros-args -p use_sim_time:=true')
-        procs.start('mission_brain', 'ros2 run drone_mission mission_brain --ros-args -p use_sim_time:=true')
+        fpr = procs.start('frontier_server', 'ros2 run drone_frontier frontier_server --ros-args '
+                                             '-p use_sim_time:=true')
+        procs.start('mission_brain', 'ros2 run drone_mission mission_brain --ros-args -p use_sim_time:=true'
+                    + brain_args)
         rclpy.init()
         node = rclpy.create_node('c4_watch')
         tl = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -82,8 +102,17 @@ def main():
             rclpy.spin_until_future_complete(node, fut, timeout_sec=10.0)
             res['started'] = bool(fut.result() and fut.result().success)
         wall_limit = a.limit / max(a.speed, 0.1) * 3 + 120
+        silence = dict(paused=None, resumed=None)
         while res['started'] and time.time() - t_wall0 < wall_limit:
             rclpy.spin_once(node, timeout_sec=0.1)
+            if a.fault == 'frontier_silence':        # freeze the frontier server for fault_len simulated seconds
+                st = metrics.get('t', 0.0)
+                if silence['paused'] is None and st >= a.fault_t:
+                    os.killpg(fpr.pid, signal.SIGSTOP)
+                    silence['paused'] = st
+                elif silence['paused'] is not None and silence['resumed'] is None and st >= a.fault_t + a.fault_len:
+                    os.killpg(fpr.pid, signal.SIGCONT)
+                    silence['resumed'] = st
             if state['s'] in ('DONE', 'STOP') and any(e.get('event') == 'summary' for e in events):
                 break
             if metrics.get('t', 0) > a.limit + 60:          # the brain's own state did not end in time
@@ -117,6 +146,12 @@ def main():
           and res['home_m'] <= 0.3 and res['contacts'] == 0 and res['switches_per_4s'] is not None
           and res['switches_per_4s'] <= 1.0 and res['aba'] == 0)
     res['pass'] = bool(ok)
+    res['fault'] = a.fault
+    if a.fault == 'frontier_silence':
+        res['silence'] = silence
+    fp = os.path.join(a.out, 'fault_planner.json')
+    if os.path.exists(fp):
+        res['fault_planner'] = json.load(open(fp))
     json.dump(res, open(os.path.join(a.out, 'result.json'), 'w'), indent=1)
     print(json.dumps({k: res[k] for k in ('world', 'index', 'final', 'coverage', 'contacts', 'home_m',
                                           'switches_per_4s', 'aba', 'mission_s', 'wall_s', 'pass')}))
