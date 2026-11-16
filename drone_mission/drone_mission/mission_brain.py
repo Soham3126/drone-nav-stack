@@ -36,6 +36,15 @@ STATUS_FIELDS = ('fc_connected', 'mode', 'armed', 'ekf_position_ok', 'origin_set
                  'frame_offset_m', 'frame_offset_deg', 'following_path', 'path_arrived', 'distance_to_path_end_m')
 
 
+def pctl(v):
+    """Summary of a list of numbers for the C7 timing report."""
+    if not v:
+        return None
+    a = np.asarray(v, float)
+    return dict(n=int(a.size), p5=round(float(np.percentile(a, 5)), 3), median=round(float(np.median(a)), 3),
+                p95=round(float(np.percentile(a, 95)), 3), max=round(float(a.max()), 3))
+
+
 class Iface:
     """mission_core's view of the world, backed by ROS."""
 
@@ -46,6 +55,8 @@ class Iface:
         return self.n.get_clock().now().nanoseconds * 1e-9
 
     def sleep(self, dt):
+        if dt == self.n.loop_period:                     # the decision loop's own sleep: mark the loop (C7)
+            self.n.loop_marks.append(self.now())
         end = self.now() + dt
         while self.now() < end and rclpy.ok():
             time.sleep(0.002)
@@ -88,10 +99,12 @@ class Iface:
         if not self.n.planner.wait_for_server(timeout_sec=5.0):
             self.log('warning', what='planner action server not available')
             return None
+        w0 = time.time()
         h = self._wait(self.n.planner.send_goal_async(g), 10.0)
         if h is None or not h.accepted:
             return None
         r = self._wait(h.get_result_async(), 15.0)
+        self.n.plan_wall_ms.append((time.time() - w0) * 1000.0)       # request to answer, wall clock (C7)
         if r is None or r.status != 4:
             return None
         pts = [(p.pose.position.x, p.pose.position.y) for p in r.result.path.poses]
@@ -186,6 +199,8 @@ class MissionBrain(Node):
         self.map = None
         self.scan_t, self.imu_t = [], []
         self.plan_ms = []
+        self.plan_wall_ms, self.loop_marks = [], []
+        self.loop_period = p.loop_period_s
         cb = ReentrantCallbackGroup()
         tl = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.tf = Buffer()
@@ -253,7 +268,8 @@ class MissionBrain(Node):
                         escapes=self.core.escapes, path_fixes=self.core.path_fixes,
                         planning_ms=dict(n=len(self.plan_ms), p95=round(float(np.percentile(self.plan_ms, 95)), 1)
                                          if self.plan_ms else None,
-                                         max=round(max(self.plan_ms), 1) if self.plan_ms else None))
+                                         max=round(max(self.plan_ms), 1) if self.plan_ms else None),
+                        plan_wall_ms=pctl(self.plan_wall_ms), loop_period_s=pctl(list(np.diff(self.loop_marks))))
 
 
 def main():

@@ -19,6 +19,54 @@ sys.path.insert(0, HERE)
 from c_common import Procs, planner_params  # noqa: E402
 
 
+class CpuMeter:
+    """CPU use of each started process INCLUDING its children ('ros2 run' starts the node as a child), sampled
+    once a second from /proc: % of one core."""
+
+    def __init__(self, ps):
+        self.ps = ps
+        self.hz = os.sysconf('SC_CLK_TCK')
+        self.last, self.series = {}, {}
+
+    @staticmethod
+    def _tree_ticks(root):
+        kids, ticks = {}, {}
+        for d in os.listdir('/proc'):
+            if not d.isdigit():
+                continue
+            try:
+                f = open(f'/proc/{d}/stat').read()
+            except OSError:
+                continue
+            rest = f[f.rindex(')') + 2:].split()
+            kids.setdefault(int(rest[1]), []).append(int(d))
+            ticks[int(d)] = int(rest[11]) + int(rest[12])            # utime + stime
+        total, todo = 0, [root]
+        while todo:
+            q = todo.pop()
+            total += ticks.get(q, 0)
+            todo += kids.get(q, [])
+        return total
+
+    def sample(self):
+        now = time.time()
+        for name, p in self.ps:
+            t = self._tree_ticks(p.pid)
+            if name in self.last:
+                t0, w0 = self.last[name]
+                if now > w0:
+                    self.series.setdefault(name, []).append(100.0 * (t - t0) / self.hz / (now - w0))
+            self.last[name] = (t, now)
+
+    def summary(self):
+        out = {}
+        for name, v in self.series.items():
+            v = sorted(v)
+            out[name] = dict(mean=round(sum(v) / len(v), 1), p95=round(v[int(0.95 * (len(v) - 1))], 1),
+                             max=round(v[-1], 1), samples=len(v))
+        return out
+
+
 def aba_switches(sw, window=10.0, r=0.5):
     """A -> B -> A within `window` s, where going back to A ABANDONED B (B was still an open frontier).
     Coming back to A because B was reached / explored / unreachable is not a change of mind. sw: (t, xy[, abandoned])."""
@@ -53,6 +101,7 @@ def main():
                     help='C6 fault injection (the 0.45 m gap fault is a world: w7_gaps)')
     ap.add_argument('--fault_t', type=float, default=60.0, help='simulated time the fault starts')
     ap.add_argument('--fault_len', type=float, default=10.0, help='frontier_silence: how long (simulated s)')
+    ap.add_argument('--timing', action='store_true', help='C7: record frontier search times and CPU per process')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     params, _ = planner_params(a.out)
@@ -103,8 +152,16 @@ def main():
             res['started'] = bool(fut.result() and fut.result().success)
         wall_limit = a.limit / max(a.speed, 0.1) * 3 + 120
         silence = dict(paused=None, resumed=None)
+        search_ms, cpu = [], CpuMeter(procs.ps)
+        if a.timing:
+            from std_msgs.msg import Float32
+            node.create_subscription(Float32, '/frontiers/search_ms', lambda m: search_ms.append(m.data), 50)
+        next_cpu = time.time() + 1.0
         while res['started'] and time.time() - t_wall0 < wall_limit:
             rclpy.spin_once(node, timeout_sec=0.1)
+            if a.timing and time.time() >= next_cpu:
+                cpu.sample()
+                next_cpu += 1.0
             if a.fault == 'frontier_silence':        # freeze the frontier server for fault_len simulated seconds
                 st = metrics.get('t', 0.0)
                 if silence['paused'] is None and st >= a.fault_t:
@@ -147,6 +204,11 @@ def main():
           and res['switches_per_4s'] <= 1.0 and res['aba'] == 0)
     res['pass'] = bool(ok)
     res['fault'] = a.fault
+    if a.timing:
+        res['frontier_search_ms'] = search_ms
+        res['cpu_pct_one_core'] = cpu.summary()
+        res['plan_wall_ms'] = summ.get('plan_wall_ms')
+        res['loop_period_s'] = summ.get('loop_period_s')
     if a.fault == 'frontier_silence':
         res['silence'] = silence
     fp = os.path.join(a.out, 'fault_planner.json')
