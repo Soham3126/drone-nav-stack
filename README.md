@@ -32,6 +32,7 @@ This repository is the `src/` folder of a ROS 2 workspace: clone it to `~/drone_
 | `drone_bridge/` | The ROS-to-flight-controller bridge (MAVLink) and its 64 unit tests |
 | `drone_nav/` | Route-planner configuration (Nav2 Smac 2D; tested in C1) |
 | `drone_frontier/` | The frontier server: finds openings into unexplored space (tested in C3) |
+| `drone_mission/` | The mission brain: take off, explore, return, land (tested in C4 on the stub world) |
 | `scripts/` | Start/stop the simulation, run a recorded test, run batches, collect results |
 | `setup/` | Install guide and the `ros_env` / `ap_env` shell shortcuts |
 | `docs/`, `results/` | Summary, per-test guides, final test results |

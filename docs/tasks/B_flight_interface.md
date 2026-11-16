@@ -59,3 +59,10 @@ ExtNav position and heading (`EK3_SRC1_POSXY 6`, `EK3_SRC1_YAW 6`), rangefinder 
 `EK3_FLOW_DELAY 50`), `SCR_ENABLE 1`. Marked "RE-SET" in the file: values that must be measured on the real drone.
 
 Per-run numbers: [`results/INDEX.md`](../../results/INDEX.md). Every change from the book, with its reason: [`HUMBLE_NOTES.md`](../../HUMBLE_NOTES.md).
+
+## Changed after B closed (C4)
+
+`carrot.py` can shorten its lookahead on bends (`follow_max_cut_m`, default 0.05 m; 0 = the fixed 0.6 m lookahead
+that B5 tested); the target it sends then stays the full 0.6 m from the drone, in the direction of the nearer
+carrot, so the speed does not drop. Reason: rounding a wall end, the fixed lookahead took the stub drone up to 0.26 m inside the
+path and into the wall. Unit tests cover it; **B5 has not been re-run with it** - do that before integration.

@@ -10,9 +10,10 @@ How to run any of them: `scripts/run_c.sh <ID>` from `~/drone_ws/src` (results i
 |---|---|---|---|
 | C0 | Test maps for every world: full, partial (with real frontiers), Cartographer-like; each loads in Nav2's map_server exactly | `drone_sim/tools/make_fixtures.py`, `drone_sim/fixtures/`, `tests/C0.py` | **PASS**: 29 worlds, 87 of 87 fixtures identical cell by cell |
 | C1 | Planner: safe, centred paths where they exist, refusal where they don't; planning time | `drone_nav/config/planner.yaml`, `tests/C1.py`, `tests/c1_cases.py` | **PASS** 36/36: corridors centred within 2.6 cm, 0.45 m gap refused, 0.60 m passed, W8 planning p95 18.6 ms |
-| C2 | Cost-map threshold 65 vs Nav2's default 100 on Cartographer-like maps | `tests/C2.py` | pending |
-| C3 | Frontier detection: every real opening, nothing else, under 50 ms | `drone_frontier/`, `tests/C3.py` | pending (offline check of the search code: 116/116 fixtures, 0 false, max 2.8 ms) |
-| C4-C6 | Mission brain on a fast stand-in drone; 100 random mazes; helper failures | - | not started |
+| C2 | Cost-map threshold 65 vs Nav2's default 100 on Cartographer-like maps | `tests/C2.py` | **PASS**: at 65 every wall blocked (100 %), 0 false walls, 0 leaks; at 100 all walls gone (142,520 leak cells) |
+| C3 | Frontier detection: every real opening, nothing else, under 50 ms | `drone_frontier/`, `tests/C3.py` | **PASS**: every passable opening found in 116 fixtures, 0 false frontiers, max 3.6 ms on 320 x 320; with the book's threshold 25: frontiers on 29 of 29 fully explored maps |
+| C4 | Mission brain on the stub: 7 worlds x 10 start poses must explore >= 98 %, return within 0.3 m, land, no contacts, calm goal switching | `drone_mission/`, `drone_sim/tools/stub_world.py`, `tests/C4.py`, `tests/c4_one.py` | **PASS** 70/70 (20261116_160045): coverage 100 %, 0 contacts, home within 0.15 m; median mission 243-394 s, W8 775 s (longest 906 s of 1200) |
+| C5-C6 | 100 random mazes; helper failures | - | not started |
 | C7 | Timing of the decision layer | - | not started |
 
 ## Fixtures (C0)
@@ -37,6 +38,17 @@ deterministic: re-running the script gives the same files.
 convert the map to exact free/wall/unknown, keep the free space reachable from the drone, frontier cells = unknown
 cells next to it, 8-connected groups, drop groups under 0.55 m, cost = 3 x distance - 1 x size.
 
+## Stub world and mission brain (C4)
+
+`drone_sim/tools/stub_core.py` / `stub_world.py` replace Gazebo, ArduPilot, Cartographer and the bridge with a fast
+stand-in: the drone follows paths with the bridge's own carrot follower (0.6 m) at 0.5 m/s with a 0.3 s lag, a
+360 deg 10 m LiDAR is raycast in the true maze, the map is published at 1 Hz with Cartographer-like values, and
+`/bridge/status`, `/bridge/command`, `/bridge/follow_path` behave like the bridge's. It runs on its own clock, 5x
+real time in C4. It referees: contacts (drone circle vs true walls), coverage, distance flown.
+
+`tests/c4_offline.py` couples the same stub, frontier search and mission brain with a grid planner that imitates
+Smac 2D, without ROS: this is how the brain's logic was developed (35 offline missions) before the ROS test.
+
 ## Differences from the book (Humble)
 
 * Nav2 Humble's ComputePathToPose returns no error code (205-208 arrived in a later Nav2): a failure is an aborted
@@ -53,6 +65,54 @@ cells next to it, 8-connected groups, drop groups under 0.55 m, cost = 3 x dista
   treats every observed value below 65 as free - the two must agree on what "free" means. C3 records what 25 does.
 * C2 judges wall cells "blocked" (wall or too close to one for the drone's centre) and reports "lethal" beside it:
   with walls drawn at 60-95, one wall cell in seven is below 65, but its neighbours still close it off.
+* Planner `cost_travel_multiplier` 5.0 instead of 2.0 (C4): with 2.0 paths hugged inside corners, and the carrot
+  (which cuts corners by up to 0.21 m) took the stub drone into walls; 5.0 keeps paths nearer the corridor centre.
+* Mission brain additions to the book's loop, each found necessary on the offline missions:
+  - goal = the frontier's middle cell (always next to known free space), not its centroid (can lie deep in unknown);
+  - blacklist entries expire after 30 s and become final after 3 failures: a frontier seen through a doorway at an
+    angle is often unreachable at first and reachable a minute later;
+  - "approach": when a frontier cannot be planned to, fly to points on the way to it (along known free cells);
+  - "escape": no path to anywhere (the drone drifted into a wall's inflation) -> back off 0.4 m along its trail;
+  - switching rule: the alternative must be cheaper by 20 % AND 1.5 cost units, checked on real path lengths
+    (straight-line ranking alone made the drone alternate between two frontiers every 22 s), and a goal given up
+    is not chosen again for 10 s;
+  - progress is measured along the planned path, not in a straight line (winding paths looked like no progress);
+  - "escape" (no path from where the drone is: it is inside the planner's lethal ring) flies to the nearest map
+    cell 0.45 m from every wall, through known free cells (backing off along the trail rocked between two spots
+    that were both too close, W4 in the first ROS run);
+  - every path is moved away from walls before it is sent (points closer than 0.5 m to a known wall are pushed
+    straight away from it, as far as the passage allows), and the part still ahead is re-checked against each
+    new map (fixed and re-sent if it passes within 0.35 m): the planner's cost map is 1-2 s behind the map in
+    flight, and its smoothing pulls paths into inside corners;
+  - clearance is measured to every wall-looking cell (value >= 60), not only to the planner's walls (>= 65): a
+    wall's tip cell is often 60-64, and the three 2 cm touches in the second ROS run were all at wall tips;
+  - paths are planned from the drone's current position (use_start with the TF pose) and trimmed to start at the
+    drone: the cost map's own robot pose lagged, at 5x stub speed by up to 0.5 m, so a new path could begin on
+    the far side of a wall end and the carrot cut round it (the last 2.5 cm touch, W5);
+  - the bridge's "arrived" flag counts only within 0.5 m of the end of the path just sent (for a moment after a
+    new path it still describes the old one: in W5 all 5 return attempts "arrived" at once and the drone
+    landed 7.6 m from home), and a return that ends more than 0.3 m from home is a STOP, never DONE;
+  - the wall touches that remained (always a 2-3 cm graze while rounding a wall END) came from the bridge's
+    carrot follower itself: flying straight at a point 0.6 m ahead, the drone ends up to 0.26 m inside a
+    0.4 m turn. The follower now shortens its lookahead on bends (drone_bridge carrot.py, parameter
+    follow_max_cut_m 0.05, lookahead never below 0.25 m): 0.07 m inside on the same turn, unchanged on
+    straights. Closest pass in the offline missions went from about 0 cm to 9-16 cm. A shortened lookahead
+    alone made the drone crawl on bends (the flight controller's speed follows the distance to its target:
+    0.33 m/s on average instead of 0.5, missions 20-75 % longer, W8 past its 20 min), so the target sent is
+    moved out along the same direction to the full lookahead distance: full speed, same clearance (48 test
+    paths: 0.50 m/s, closest pass 9 cm, typical 13 cm; fixed lookahead: 5 cm). This changes B code:
+    the bridge unit tests pass (2 new), B5 (path following in Gazebo) should be re-run before integration;
+  - real ROS runs refused 2-4x more plans than the offline copy ("no path": 31 against 7 in W6 1.0 m) and flew at
+    0.17-0.42 m/s on average against 0.44: the planner's cost map was refreshed at 1 Hz from a /map that is
+    itself 1 Hz, so it lagged the map by up to 2 s and refused frontiers that had just appeared. Cost map
+    update_frequency is now 5 Hz, and a frontier's FIRST "no path" blacklists it for 6 s, not 30 s;
+  - the return home retries for up to 300 s (escape, re-plan, points on the way home, wait 1 s) instead of
+    5 instant attempts: in one ROS run all 5 were refused within 0.15 s and the drone stopped 5 m from home;
+  - "A -> B -> A" counts only real changes of mind (B still an open frontier when the drone went back to A).
+* First ROS runs of C4 (lessons): the pre-flight "map present" check needs only 20 % of the 2 m square around the
+  drone known (walls hide the rest); rclpy refuses one line of code logging at two severities (the brain's
+  thread died at its first warning); ament_python packages must be rebuilt after every code change, even with
+  --symlink-install.
 * "recorded" fixtures (final maps from workstream A's recordings in `~/drone_replay_bags`) are not made yet.
 
 ## Findings

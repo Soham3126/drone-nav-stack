@@ -166,3 +166,55 @@ def test_set_path_resets_progress():
     c.set_path([(0, 0), (0, 5)])
     assert c.s == 0.0 and not c.arrived
     assert c.update(0, 1) == pytest.approx((0, 1.5))
+
+
+def _fly(c, path, speed=0.5, dt=0.05, steps=600):
+    """A point drone that flies straight at the carrot; returns its track."""
+    import math
+    c.set_path(path)
+    x, y = path[0]
+    track = []
+    for _ in range(steps):
+        cx, cy = c.update(x, y)
+        d = math.hypot(cx - x, cy - y)
+        if d < 1e-3:
+            break
+        x, y = x + (cx - x) / d * speed * dt, y + (cy - y) / d * speed * dt
+        track.append((x, y))
+    return track
+
+
+def test_max_cut_keeps_the_drone_near_the_path_round_a_wall_end():
+    import math
+    # a U-turn round a wall end at (2, 0): up one side, round at 0.4 m, back down the other
+    arc = [(2.0 + 0.4 * math.cos(a), 0.4 * math.sin(a)) for a in [math.pi * (1 - i / 20) for i in range(21)]]
+    path = [(1.6, -2.0 + 0.1 * i) for i in range(20)] + arc + [(2.4, -0.1 * i) for i in range(1, 21)]
+    near = lambda track: min(math.hypot(x - 2.0, y) for x, y in track)   # noqa: E731
+    fixed = near(_fly(CarrotFollower(0.6), path))
+    limited = near(_fly(CarrotFollower(0.6, max_cut=0.05), path))
+    assert fixed < 0.20                      # the plain follower ends up ~0.26 m inside the 0.4 m turn
+    assert limited > 0.31                    # with the bend limit it stays within 9 cm of the path
+
+
+def test_max_cut_does_not_change_straight_paths():
+    c = CarrotFollower(0.6, max_cut=0.05)
+    c.set_path([(0.0, 0.0), (1.0, 0.0), (5.0, 0.0)])
+    assert c.update(0.5, 0.02) == (1.1, 0.0)
+
+
+def test_shortened_lookahead_keeps_the_target_a_full_lookahead_away():
+    import math
+    # a right-angle bend at (2, 0): just before it the lookahead is shortened, but the target sent stays
+    # 0.6 m from the drone (so the flight controller keeps its speed) in the direction of the near carrot
+    c = CarrotFollower(0.6, max_cut=0.05)
+    c.set_path([(0.0, 0.0), (2.0, 0.0), (2.0, 3.0)])
+    for i in range(18):                       # fly along the first leg to x = 1.7
+        x, y = 0.1 * i, 0.0
+        tx, ty = c.update(x, y)
+    assert c.lookahead_now((x, y)) < 0.6
+    assert abs(math.hypot(tx - x, ty - y) - 0.6) < 1e-6 and ty > 0.0
+    # at the end of the path the target is the end point itself
+    c.set_path([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)])
+    for x, y in [(0.0, 0.0), (0.5, 0.0), (0.9, 0.0), (1.0, 0.3), (1.0, 0.8)]:
+        t = c.update(x, y)
+    assert t == (1.0, 1.0)

@@ -6,7 +6,11 @@ Every 0.1 s:
  3. (caller) converts the carrot to the FC frame and sends it as a position target;
  4. at the path's end the carrot stays on the final point; "arrived" = within 0.15 m and slower than
     0.1 m/s for 1 s.
-At a 90 deg corner the line drone->carrot cuts inside the path by at most 0.354 * L.
+At a 90 deg corner the line drone->carrot cuts inside the path by at most 0.354 * L (0.21 m for L = 0.6).
+With max_cut set (C4), the lookahead is shortened on bends (never below min_lookahead) until the path between
+the drone's place on it and the carrot stays within max_cut of the straight line drone -> carrot: on straights
+the full lookahead, round a wall end a short one, so the drone no longer cuts inside the path there. The
+target sent is then moved out along the same direction to the full lookahead distance, which keeps the speed.
 
 Coordinates are 2D (x, y) in the map frame. The search window keeps the closest-point search from
 jumping to a later part of the path that happens to pass nearby (U-turns, loops).
@@ -16,8 +20,10 @@ import math
 
 class CarrotFollower:
     def __init__(self, lookahead=0.5, arrive_radius=0.15, arrive_speed=0.1, arrive_time=1.0,
-                 search_window=None):
+                 search_window=None, max_cut=None, min_lookahead=0.25):
         self.L = float(lookahead)
+        self.max_cut = max_cut               # None: fixed lookahead (the book's follower)
+        self.min_L = min(float(min_lookahead), self.L)
         self.arrive_radius = arrive_radius
         self.arrive_speed = arrive_speed
         self.arrive_time = arrive_time
@@ -110,7 +116,40 @@ class CarrotFollower:
             raise ValueError('no path')
         self.s = self.closest_progress(x, y)
         self.seg = self._segment_of(self.s)
-        return self.point_at(self.s + self.L)
+        la = self.lookahead_now((x, y))
+        cx, cy = self.point_at(self.s + la)
+        if la < self.L - 1e-9 and self.length - self.s > self.L:
+            # shortened on a bend: keep the DIRECTION to the near carrot but put the target the full lookahead
+            # away, so the flight controller keeps its speed (its speed follows the distance to the target; a
+            # target 0.25 m away means 0.25 m/s). Near the path's end the carrot itself is the target.
+            d = math.hypot(cx - x, cy - y)
+            if d > 1e-6 and d < self.L:
+                k = self.L / d
+                cx, cy = x + (cx - x) * k, y + (cy - y) * k
+        return cx, cy
+
+    def lookahead_now(self, drone=None):
+        """The lookahead for the current progress: L, shortened on a bend if max_cut is set (the path up to
+        the carrot must stay within max_cut of the line the drone will fly: drone -> carrot)."""
+        if self.max_cut is None or len(self.pts) < 3:
+            return self.L
+        L = self.L
+        a = drone if drone is not None else self.point_at(self.s)
+        while L > self.min_L + 1e-9:
+            if self._bulge(a, self.s, self.s + L) <= self.max_cut:
+                break
+            L = max(self.min_L, L - 0.05)
+        return L
+
+    def _bulge(self, a, s0, s1):
+        """Largest distance of the path between lengths s0 and s1 from the straight line a -> point_at(s1)."""
+        b = self.point_at(s1)
+        worst = 0.0
+        i = self._segment_of(s0) + 1
+        while i < len(self.pts) and self.cum[i] < s1:
+            worst = max(worst, corner_cut(a, b, self.pts[i]))
+            i += 1
+        return worst
 
     def distance_to_end(self, x, y):
         if not self.pts:

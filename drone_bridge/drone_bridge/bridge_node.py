@@ -95,7 +95,10 @@ class BridgeNode(Node):
         self.last_sent_stamp = 0.0
         self.last_boot_ms = None                # autopilot uptime, to tell a reboot from a link drop
         self.offset = OffsetEstimator(0.1)
-        self.carrot = CarrotFollower(self.lookahead)
+        # C4: shorten the lookahead on bends so the drone cuts at most this far inside the path (0 = fixed
+        # lookahead, as tested in B5)
+        self.max_cut = float(P('follow_max_cut_m', 0.05).value)
+        self.carrot = CarrotFollower(self.lookahead, max_cut=self.max_cut if self.max_cut > 0 else None)
         self.following = False
         self.takeoff_yaw_ned = None
         self.hold_target = None
