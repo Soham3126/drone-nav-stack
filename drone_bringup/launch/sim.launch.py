@@ -21,7 +21,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-READY = {'gps', 'truth', 'slam'}
+READY = {'gps', 'truth', 'slam', 'full'}
 ALL = ('gps', 'truth', 'slam', 'full')
 
 
@@ -72,6 +72,17 @@ def setup(context):
             PythonLaunchDescriptionSource(os.path.join(
                 get_package_share_directory('drone_slam'), 'launch', 'slam.launch.py')),
             launch_arguments=slam_args.items()))
+    if profile == 'full':
+        # the decision layer (integration, guidebook 4.6): planner server, frontier server, mission brain.
+        # The brain waits in WAIT_READY until /mission/start is called.
+        actions.append(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(
+                get_package_share_directory('drone_nav'), 'launch', 'planner.launch.py')),
+            launch_arguments={'use_sim_time': 'true'}.items()))
+        actions.append(Node(package='drone_frontier', executable='frontier_server', name='frontier_server',
+                            output='screen', parameters=[{'use_sim_time': True}]))
+        actions.append(Node(package='drone_mission', executable='mission_brain', name='mission_brain',
+                            output='screen', parameters=[{'use_sim_time': True}]))
     return actions
 
 

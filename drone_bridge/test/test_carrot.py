@@ -206,7 +206,7 @@ def test_shortened_lookahead_keeps_the_target_a_full_lookahead_away():
     import math
     # a right-angle bend at (2, 0): just before it the lookahead is shortened, but the target sent stays
     # 0.6 m from the drone (so the flight controller keeps its speed) in the direction of the near carrot
-    c = CarrotFollower(0.6, max_cut=0.05)
+    c = CarrotFollower(0.6, max_cut=0.05, keep_speed=True)
     c.set_path([(0.0, 0.0), (2.0, 0.0), (2.0, 3.0)])
     for i in range(18):                       # fly along the first leg to x = 1.7
         x, y = 0.1 * i, 0.0

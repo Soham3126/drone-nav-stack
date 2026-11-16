@@ -12,5 +12,8 @@
   <exec_depend>drone_description</exec_depend>
   <exec_depend>drone_sim</exec_depend>
   <exec_depend>drone_slam</exec_depend>
+  <exec_depend>drone_nav</exec_depend>
+  <exec_depend>drone_frontier</exec_depend>
+  <exec_depend>drone_mission</exec_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

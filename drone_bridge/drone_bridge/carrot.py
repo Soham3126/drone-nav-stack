@@ -9,8 +9,11 @@ Every 0.1 s:
 At a 90 deg corner the line drone->carrot cuts inside the path by at most 0.354 * L (0.21 m for L = 0.6).
 With max_cut set (C4), the lookahead is shortened on bends (never below min_lookahead) until the path between
 the drone's place on it and the carrot stays within max_cut of the straight line drone -> carrot: on straights
-the full lookahead, round a wall end a short one, so the drone no longer cuts inside the path there. The
-target sent is then moved out along the same direction to the full lookahead distance, which keeps the speed.
+the full lookahead, round a wall end a short one, so the drone no longer cuts inside the path there.
+keep_speed=True moves a shortened target out along the same direction to the full lookahead distance. That is
+for the stub only (its point drone's speed follows the target distance): under ArduPilot (B5 re-run in Gazebo,
+2026-11-16) the moved-out target lay beyond the inside of each corner and the drone flew 23 cm into the wall.
+The bridge itself uses the fixed lookahead that B5 passed with (follow_max_cut_m 0 = off).
 
 Coordinates are 2D (x, y) in the map frame. The search window keeps the closest-point search from
 jumping to a later part of the path that happens to pass nearby (U-turns, loops).
@@ -20,8 +23,9 @@ import math
 
 class CarrotFollower:
     def __init__(self, lookahead=0.5, arrive_radius=0.15, arrive_speed=0.1, arrive_time=1.0,
-                 search_window=None, max_cut=None, min_lookahead=0.25):
+                 search_window=None, max_cut=None, min_lookahead=0.25, keep_speed=False):
         self.L = float(lookahead)
+        self.keep_speed = keep_speed         # move a shortened carrot out to L (stub only, see below)
         self.max_cut = max_cut               # None: fixed lookahead (the book's follower)
         self.min_L = min(float(min_lookahead), self.L)
         self.arrive_radius = arrive_radius
@@ -118,7 +122,7 @@ class CarrotFollower:
         self.seg = self._segment_of(self.s)
         la = self.lookahead_now((x, y))
         cx, cy = self.point_at(self.s + la)
-        if la < self.L - 1e-9 and self.length - self.s > self.L:
+        if self.keep_speed and la < self.L - 1e-9 and self.length - self.s > self.L:
             # shortened on a bend: keep the DIRECTION to the near carrot but put the target the full lookahead
             # away, so the flight controller keeps its speed (its speed follows the distance to the target; a
             # target 0.25 m away means 0.25 m/s). Near the path's end the carrot itself is the target.

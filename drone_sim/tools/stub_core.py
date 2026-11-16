@@ -50,7 +50,9 @@ class StubCore:
         self.z = 0.0
         self.armed, self.mode = False, 'STABILIZE'
         self.phase = 'ground'                              # ground | takeoff | air | landing
-        self.carrot = CarrotFollower(lookahead, max_cut=max_cut)
+        # the stand-in drone keeps the bend-aware follower it passed C4-C7 with (its crude speed model needs it);
+        # the real bridge uses the fixed lookahead (carrot.py)
+        self.carrot = CarrotFollower(lookahead, max_cut=max_cut, keep_speed=True)
         self.following = False
         self.hold = None                                   # world (x, y) to hold
         self.next_scan = 0.0

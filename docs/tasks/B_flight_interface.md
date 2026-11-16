@@ -60,9 +60,12 @@ ExtNav position and heading (`EK3_SRC1_POSXY 6`, `EK3_SRC1_YAW 6`), rangefinder 
 
 Per-run numbers: [`results/INDEX.md`](../../results/INDEX.md). Every change from the book, with its reason: [`HUMBLE_NOTES.md`](../../HUMBLE_NOTES.md).
 
-## Changed after B closed (C4)
+## Changed after B closed (C4) - and changed back
 
-`carrot.py` can shorten its lookahead on bends (`follow_max_cut_m`, default 0.05 m; 0 = the fixed 0.6 m lookahead
-that B5 tested); the target it sends then stays the full 0.6 m from the drone, in the direction of the nearer
-carrot, so the speed does not drop. Reason: rounding a wall end, the fixed lookahead took the stub drone up to 0.26 m inside the
-path and into the wall. Unit tests cover it; **B5 has not been re-run with it** - do that before integration.
+C4 added a bend-aware option to `carrot.py` (`follow_max_cut_m`): a shorter lookahead on bends, with the target
+moved back out to the full 0.6 m so the speed did not drop. It was made for the stub drone, whose crude motion
+model cut wall ends. Re-running B5 in Gazebo with it (2026-11-16, 2 runs) failed badly: the moved-out target lay
+beyond the inside of each corner, ArduPilot flew to it, and the drone went 23 cm into the wall on the L-turn,
+T-junction and U-turn. So the bridge is back to the fixed 0.6 m lookahead that B5 passed with
+(`follow_max_cut_m` default 0 = off); only the stub keeps the option (`keep_speed=True`, stub only). B5 must
+pass again with this before integration (gate).

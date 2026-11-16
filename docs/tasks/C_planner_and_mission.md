@@ -101,7 +101,10 @@ Smac 2D, without ROS: this is how the brain's logic was developed (35 offline mi
     alone made the drone crawl on bends (the flight controller's speed follows the distance to its target:
     0.33 m/s on average instead of 0.5, missions 20-75 % longer, W8 past its 20 min), so the target sent is
     moved out along the same direction to the full lookahead distance: full speed, same clearance (48 test
-    paths: 0.50 m/s, closest pass 9 cm, typical 13 cm; fixed lookahead: 5 cm). This changes B code:
+    paths: 0.50 m/s, closest pass 9 cm, typical 13 cm; fixed lookahead: 5 cm). LATER (B5 re-run in Gazebo):
+    under ArduPilot the moved-out target sent the drone 23 cm into corners, so the real bridge went back to the
+    fixed lookahead; only the stub keeps the bend-aware follower (C4 tests the decision logic "independent of
+    SLAM and flight quality", as the book says; real contacts are measured in I2-I5). This changed B code:
     the bridge unit tests pass (2 new), B5 (path following in Gazebo) should be re-run before integration;
   - real ROS runs refused 2-4x more plans than the offline copy ("no path": 31 against 7 in W6 1.0 m) and flew at
     0.17-0.42 m/s on average against 0.44: the planner's cost map was refreshed at 1 Hz from a /map that is
