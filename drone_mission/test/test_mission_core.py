@@ -308,3 +308,25 @@ def test_reach_toward_goes_round_the_wall_not_to_its_back():
     target = (1.0, 2.2)                                 # frontier just above it
     q = reach_toward(*grid, pose, target, 0.35)
     assert q is not None and q[1] > 2.0                 # on the frontier's side, reached round the wall end
+
+
+def test_path_home_ends_at_home_even_near_a_wall():
+    """I3 run 1: keep_clear pushed the last point of every path home 0.34 m away from home (0.35 m from a wall)."""
+    import numpy as np
+    from drone_mission.mission_core import MissionCore, Params, dist
+    g = np.zeros((60, 60), dtype=np.int16)
+    g[:, 0] = 100                                       # wall along x = 0
+    grid = (g, 0.05, (0.0, 0.0))
+    home = (0.40, 1.5)                                  # 0.35 m from the wall face
+
+    class IO:
+        def map_grid(self):
+            return grid
+    m = MissionCore.__new__(MissionCore)
+    m.io = IO()
+    m.p = Params()
+    m.pin_end = home
+    moved = [(1.5, 1.5), (1.0, 1.5), (0.55, 1.5)]       # as keep_clear leaves it: end pushed off the wall
+    assert dist(m.pinned(grid, moved)[-1], home) < 1e-9
+    m.pin_end = None
+    assert m.pinned(grid, moved) == moved               # exploring: unchanged

@@ -475,6 +475,22 @@ class MissionCore:
                 return None
         return None
 
+    def pinned(self, grid, path):
+        """On the way home the path must end *at* home: keep_clear moves every point, the last one too, away from
+        walls (I3 run 1: home is 0.35 m from a wall in the map, so each path home ended 0.34 m from it, the drone
+        could never get within 0.15 m, and the mission stopped). The planner may also stop short of the goal
+        (tolerance). So the last point is put back on home - if the straight leg there is clear."""
+        pin = getattr(self, 'pin_end', None)
+        if pin is None or not path:
+            return path
+        pin = tuple(pin)
+        body = list(path[:-1]) if len(path) >= 2 else list(path)
+        if dist(path[-1], pin) <= 0.6 and body and segment_clearance(*grid, body[-1], pin) >= self.p.contact_d_m:
+            return body + [pin]
+        if segment_clearance(*grid, path[-1], pin) >= self.p.contact_d_m and dist(path[-1], pin) <= 0.6:
+            return list(path) + [pin]
+        return path
+
     def send(self, path):
         """Follow `path` after moving its points away from walls (see keep_clear), using the newest map."""
         pose = self.io.pose()
@@ -489,6 +505,7 @@ class MissionCore:
         if grid is not None:
             cleared = make_clear(*grid, path, self.p.path_clear_m, self.p.carrot_lookahead_m, self.p.track_min_m)
             path = untangle(grid, path, cleared)  # moving points must never make a leg pass through a wall
+            path = self.pinned(grid, path)
             if crosses_wall(grid, path):
                 # the planner's own path runs through a wall (its cost map lags the map; or it was asked for a
                 # point behind a wall). Fly only up to the wall: I2 x10 run 6 flew at the outer wall twice.
@@ -531,6 +548,7 @@ class MissionCore:
         fixed = make_clear(g, res, origin, ahead, self.p.path_clear_m, self.p.carrot_lookahead_m,
                            self.p.track_min_m)
         fixed = untangle(grid, ahead, fixed)    # moved points must never make a leg pass through a wall
+        fixed = self.pinned(grid, fixed)
         cut = False
         if crosses_wall(grid, fixed):
             # still through a wall (a point that sat on a just-seen wall can be pushed out on its far side,
@@ -600,6 +618,7 @@ class MissionCore:
     def go_home(self):
         self.set_state('RETURN')
         home = (self.p.home_x, self.p.home_y)
+        self.pin_end = home
         attempt, failures, t_end = 0, 0, self.io.now() + self.p.return_timeout_s
         while attempt < self.p.return_attempts and self.io.now() < t_end:
             pose = self.io.pose()

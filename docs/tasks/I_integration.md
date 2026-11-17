@@ -9,7 +9,7 @@ Nav2 planner server, the frontier server and the mission brain. Start-up profile
 | gate | B5 re-run on the fixed 0.6 m lookahead (the bend-aware follower failed: 23 cm into corners, 2 runs; bridge reverted) | `run_test.sh B5 w2_turns_junctions truth` x3 at 0.8 m/s | **PASS** 3/3 (20261116_230820, _231054, _231330): lateral <= 5.7 cm straight / 11.1 cm corners, clearance >= 12.8 cm, arrival <= 4.9 cm |
 | I1 | Hover 60 s + B5's paths on Cartographer's pose (W2): drift < 0.08 m, lateral <= 0.15 m, clearance >= 0.05 m | `run_test.sh I1 w2_turns_junctions slam 900` | **PASS** (20261117_011042): hover drift 5.3 cm; lateral <= 6.5 cm straight / 10.4 cm corners; clearance >= 13.6 cm; Cartographer ATE 1.9 cm RMS (5.8 cm max) |
 | I2 | W3, 10 full missions | `run_i.sh I2 w3_tree_maze 10` | **PASS** 10/10 after fixes 1-9 (batch ending 20261118_002415): coverage >= 99.4 %, 0 contacts, landing <= 0.26 m, ATE <= 12.5 cm, offset <= 0.087 m, 304-443 s; see below |
-| gate 2 | B5 with the bend limit the `full` profile uses | `MAXCUT=0.05 SPEED=0.8 LOOK=0.6 run_test.sh B5 w2_turns_junctions truth 900` x3 | pending |
+| gate 2 | B5 with the bend limit the `full` profile uses | `MAXCUT=0.05 SPEED=0.8 LOOK=0.6 run_test.sh B5 w2_turns_junctions truth 900` x3 | **PASS** 3/3 (20261117_030230, _030515, _030758): lateral <= 5.1 cm straight / 6.1 cm corners, clearance >= 15.4 cm, arrival <= 4.5 cm |
 | I3 | W4, 10 full missions | `run_i.sh I3 w4_maze_rooms 10` | pending |
 | I4 | W6 x3 widths, W7, W5: 5 each; 0.45 m gap never entered | `run_i.sh I4 <world> 5` | pending |
 | I5 | W8, 10 missions with flow as decided in B7 (+5 the other way) | `run_i.sh I5 w8_arena_full 10` | pending |
@@ -188,3 +188,13 @@ trigger in the 742 s run). It cannot by itself undo a wrong autopilot estimate.
 
 10/10: coverage 99.4-100 %, no contact (closest 9.1 cm), landing 0.01-0.26 m, ATE 4.9-12.5 cm, frame offset
 0.059-0.087 m, missions 304-443 s. No flight-controller drift like run 9 of the previous batch.
+
+## I3 x10 (batch ending 20261118_022008, commit 88cf1a8): 9/10 -> fix 10
+
+No contact in any run; coverage 97.5-100 %; ATE 4.7-14.3 cm; missions 468-885 s. Run 1 (20261118_003805) explored
+100 % but ended in STOP "could not get home: 0.33 m away": fix 8 made the return aim for 0.15 m, and every path
+home ended 0.34 m from home - keep_clear moves all of a path's points away from walls, the last one too, and home
+is 0.35 m from a wall in the map (0.475 m in truth; the map draws walls thicker). Fix 10: on the way home the
+last point is put back on home (if the straight leg to it is clear), in sends and in re-checks. Landings were
+0.25-0.30 m in four runs (W4's SLAM error near home is 10-14 cm); with the path now ending on home, the drone
+lands where SLAM puts home rather than up to 0.34 m short of it.
