@@ -63,16 +63,24 @@ def run(out, world):
     from b_common import Client, load_meta, save, set_param
     speed = float(os.environ.get('SPEED', '0.5'))
     look = float(os.environ.get('LOOK', '0.5'))
+    maxcut = float(os.environ.get('MAXCUT', '0'))        # I2: the bend limit the full mission profile uses (0.05)
     rects = load_meta(world)['walls']
-    res = dict(speed=speed, lookahead=look, paths={})
-    lines = [f'B5 speed {speed} m/s, lookahead {look} m']
+    res = dict(speed=speed, lookahead=look, max_cut=maxcut, paths={})
+    lines = [f'B5 speed {speed} m/s, lookahead {look} m, bend limit {maxcut} m']
     import subprocess
     with Client() as cl:
         from b_common import wait_for
         wait_for(lambda: cl.last() is not None, 120)          # the bridge is up
-        r = subprocess.run(['bash', '-c', 'source /opt/ros/humble/setup.bash; source $HOME/drone_ws/install/setup.bash; '
-                            f'ros2 param set /bridge lookahead_m {look}'], capture_output=True, text=True, timeout=60)
-        lines.append(f'lookahead set: {r.stdout.strip() or r.stderr.strip()}')
+        for name, val in (('lookahead_m', look), ('follow_max_cut_m', maxcut)):
+            # retried: right after start-up the bridge can answer "undeclared parameter"
+            for _ in range(10):
+                r = subprocess.run(['bash', '-c', 'source /opt/ros/humble/setup.bash; source $HOME/drone_ws/install/'
+                                    f'setup.bash; ros2 param set /bridge {name} {val}'],
+                                   capture_output=True, text=True, timeout=60)
+                if 'successful' in r.stdout.lower():
+                    break
+                time.sleep(3)
+            lines.append(f'{name} set: {r.stdout.strip() or r.stderr.strip()}')
         wsp = set_param('WP_SPD', speed)
         lines.append(f'WP_SPD read back: {wsp}')
         ok, msg = cl.take_off(1.1)
@@ -114,13 +122,13 @@ def summary(root):
     for f in sorted(glob.glob(os.path.join(os.path.expanduser(root), '*_B5_*', 'result.json'))):
         r = json.load(open(f))
         if 'speed' in r and r.get('paths'):
-            by.setdefault((r['speed'], r['lookahead']), []).append(r)
-    print(f"{'speed':>5s} {'L':>4s} {'runs':>4s} {'pass':>4s} {'lat straight':>12s} {'lat corner':>10s} "
+            by.setdefault((r['speed'], r['lookahead'], r.get('max_cut', 0.0)), []).append(r)
+    print(f"{'speed':>5s} {'L':>4s} {'cut':>4s} {'runs':>4s} {'pass':>4s} {'lat straight':>12s} {'lat corner':>10s} "
           f"{'clearance':>9s} {'arrival':>7s} {'time s':>6s}   (worst over runs and paths; time = mean total)")
-    for (sp, L), rs in sorted(by.items()):
+    for (sp, L, mc), rs in sorted(by.items()):
         ps = [p for r in rs for p in r['paths'].values()]
         npass = sum(r['pass'] for r in rs)
-        print(f"{sp:5.1f} {L:4.1f} {len(rs):4d} {npass:4d} {max(p['lateral_straight_max'] for p in ps)*100:10.1f}cm "
+        print(f"{sp:5.1f} {L:4.1f} {mc:4.2f} {len(rs):4d} {npass:4d} {max(p['lateral_straight_max'] for p in ps)*100:10.1f}cm "
               f"{max(p['lateral_corner_max'] for p in ps)*100:8.1f}cm "
               f"{min(p['clearance_min'] for p in ps if p['clearance_min'] is not None)*100:7.1f}cm "
               f"{max(p['arrival_error'] for p in ps if p['arrival_error'] is not None)*100:5.1f}cm "

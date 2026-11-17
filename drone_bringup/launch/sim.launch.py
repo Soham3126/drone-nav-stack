@@ -113,6 +113,12 @@ def bridge_actions(profile, mangle, gate=False, throttle=True):
             bp.update(pose_topic='/pose_gated')
     else:
         bp.update(pose_source='tf')
+    if profile == 'full':
+        # I2: the mission flies the bend-limited carrot the C4-C7 practice runs used (cut <= 5 cm inside the path)
+        bp.update(follow_max_cut_m=0.05)
+        # I2: close-range LiDAR guard (drone_bridge/guard.py): stop if a wall the map has not caught up with is
+        # within stopping distance straight ahead
+        bp.update(guard_scan_topic='/scan')
     # Simulation only: Gazebo publishes /clock once per 1 ms physics step, and receiving 1000 messages a second
     # costs a Python node ~8% of a core (B9 probe). The bridge gets a copy thinned to 100 Hz (C++ throttle);
     # its timers then tick with 10 ms resolution, which is enough for 30 Hz poses. The real drone has no /clock.

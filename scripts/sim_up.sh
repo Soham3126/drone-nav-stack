@@ -14,6 +14,8 @@ SIMV=$HOME/ardupilot/Tools/autotest/sim_vehicle.py
 [ -f "$REPO/drone_sim/worlds/$WORLD.sdf" ] || { echo "no world $WORLD.sdf in drone_sim/worlds (run make_maze.py)"; exit 1; }
 if tmux has-session -t sim 2>/dev/null; then echo "a 'sim' session is already running: scripts/sim_down.sh first"; exit 1; fi
 mkdir -p "$OUT"
+# I2 fix 2: the iris collides like our 0.27 m airframe (propeller discs trimmed); rebuilt from ~/ardupilot_gazebo each start
+python3 "$REPO/drone_sim/tools/make_compact_iris.py" > "$OUT/compact_iris.txt" || { echo "make_compact_iris.py failed (see $OUT/compact_iris.txt)"; exit 1; }
 
 PARMS="--add-param-file=$P/sitl_base.parm"
 case "$PROFILE" in

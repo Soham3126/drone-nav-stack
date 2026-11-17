@@ -183,3 +183,17 @@ def corner_cut(p, q, corner):
         return math.hypot(corner[0] - p[0], corner[1] - p[1])
     t = min(1.0, max(0.0, ((corner[0] - p[0]) * dx + (corner[1] - p[1]) * dy) / L2))
     return math.hypot(corner[0] - (p[0] + t * dx), corner[1] - (p[1] + t * dy))
+
+
+def slew(prev, target, max_step):
+    """Move prev toward target by at most max_step (m); prev None -> target. The bridge passes every carrot
+    through this before sending it, so a new path that starts somewhere else (often behind the drone, when the
+    mission brain picks a goal the other way) is not a sudden jump of the target: ArduPilot turned such jumps into
+    hard reversals (I2, first full mission: 37 deg tilt, 1.45 m/s, into a wall)."""
+    if prev is None:
+        return tuple(target)
+    dx, dy = target[0] - prev[0], target[1] - prev[1]
+    d = math.hypot(dx, dy)
+    if d <= max_step or d < 1e-9:
+        return tuple(target)
+    return (prev[0] + dx / d * max_step, prev[1] + dy / d * max_step)

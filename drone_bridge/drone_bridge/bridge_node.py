@@ -35,7 +35,8 @@ from sensor_msgs.msg import LaserScan  # noqa: E402
 from std_msgs.msg import String, UInt8  # noqa: E402
 from tf2_msgs.msg import TFMessage  # noqa: E402
 
-from .carrot import CarrotFollower  # noqa: E402
+from .carrot import CarrotFollower, slew
+from .guard import time_to_contact_m, stop_distance_m  # noqa: E402
 from .commands import COPTER_GUIDED, MAV_MODE_FLAG_SAFETY_ARMED, CommandRunner  # noqa: E402
 from .frames import flu_to_ned_rpy, quat_to_rpy  # noqa: E402
 from .mavlink_link import MavLink  # noqa: E402
@@ -96,8 +97,23 @@ class BridgeNode(Node):
         self.last_boot_ms = None                # autopilot uptime, to tell a reboot from a link drop
         self.offset = OffsetEstimator(0.1)
         # optional: shorten the lookahead on bends so the drone cuts at most this far inside the path. 0 (default)
-        # = the fixed lookahead B5 passed with; the shortened carrot is untested under ArduPilot (see carrot.py)
+        # = the book's fixed lookahead. The full mission profile sets 0.05 (I2: the fixed 0.6 m carrot cut wall
+        # ends to 0.32-0.36 m centre-to-wall, the C4-C7 practice runs had used 0.05 all along); B5 checks it (MAXCUT)
         self.max_cut = float(P('follow_max_cut_m', 0.0).value)
+        # how fast the target sent to ArduPilot may move (m/s): above WP_SPD 0.8, so ordinary following is
+        # untouched; a new path that starts elsewhere is glided to instead of jumped to (I2)
+        self.target_slew = float(P('target_slew_mps', 1.0).value)
+        self.cmd_xy = None
+        # close-range LiDAR guard (I2; see guard.py). '' = off (the book's bridge); the full profile sets /scan.
+        self.guard_topic = P('guard_scan_topic', '').value
+        self.guard_radius = float(P('guard_radius_m', 0.30).value)     # drone 0.27 m + a little
+        self.guard_decel = float(P('guard_decel_mps2', 1.0).value)
+        self.guard_margin = float(P('guard_margin_m', 0.08).value)
+        self.scan = None                        # (receive time, ranges, angle_min, angle_inc, range_min, range_max)
+        self.guard_xy = None                    # where the target is frozen while the guard holds
+        self.guard_clear_since = None
+        self.guard_stops = 0
+        self.guard_trail = []                   # (t, x, y) of the last 0.25 s of SLAM poses, for its velocity
         self.carrot = CarrotFollower(self.lookahead, max_cut=self.max_cut if self.max_cut > 0 else None)
         self.following = False
         self.takeoff_yaw_ned = None
@@ -123,6 +139,8 @@ class BridgeNode(Node):
         if self.reset_topic:
             self.create_subscription(UInt8, self.reset_topic, self.on_reset, 10)
         self.create_subscription(Path, '/bridge/follow_path', self.on_path, 10)
+        if self.guard_topic:
+            self.create_subscription(LaserScan, self.guard_topic, self.on_scan, qos_profile_sensor_data)
         if self.rf_topic:
             self.create_subscription(LaserScan, self.rf_topic, self.on_range, qos_profile_sensor_data)
         self.pub_status = self.create_publisher(BridgeStatus, '/bridge/status', 10)
@@ -144,6 +162,10 @@ class BridgeNode(Node):
                 self.carrot.L = self.lookahead
                 self.carrot.window = 2.0 * self.lookahead + 0.5
                 self.get_logger().info(f'lookahead now {self.lookahead} m')
+            elif p.name == 'follow_max_cut_m':
+                self.max_cut = float(p.value)
+                self.carrot.max_cut = self.max_cut if self.max_cut > 0 else None
+                self.get_logger().info(f'follow_max_cut_m now {self.max_cut} m')
         return SetParametersResult(successful=True)
 
     # ------------------------------------------------------------------ helpers
@@ -235,6 +257,60 @@ class BridgeNode(Node):
         self.link.send('distance_sensor_send', int(time.monotonic() * 1000) & 0xFFFFFFFF, lo, hi, cm,
                        M.MAV_DISTANCE_SENSOR_LASER, 0, M.MAV_SENSOR_ROTATION_PITCH_270, 0)
 
+    def on_scan(self, msg):
+        with self.lock:
+            self.scan = (self.now_s(), list(msg.ranges), msg.angle_min, msg.angle_increment,
+                         max(msg.range_min, 0.12), msg.range_max)
+
+    def guard(self, x, y, yaw, cmd, st):
+        """The target to send: `cmd`, or the frozen position while something is within stopping distance."""
+        with self.lock:
+            sc = self.scan
+        if sc is None or self.now_s() - sc[0] > 0.3:
+            return cmd
+        # velocity from the SLAM pose, not from ArduPilot: in I2 x10d run 9 the autopilot's estimate missed a
+        # 0.45 m/s sideways drift for a second (it believed it was flying straight on), so a guard looking
+        # along the autopilot's velocity looked the wrong way until the drone was already on the wall
+        now = self.now_s()
+        self.guard_trail.append((now, x, y))
+        while len(self.guard_trail) > 2 and now - self.guard_trail[0][0] > 0.25:
+            self.guard_trail.pop(0)
+        t0, x0, y0 = self.guard_trail[0]
+        if now - t0 >= 0.1:
+            vx, vy = (x - x0) / (now - t0), (y - y0) / (now - t0)
+        else:
+            lp = st['lpos']
+            vx, vy = (lp[3], -lp[4]) if lp else (0.0, 0.0)      # NED -> map FLU (frames agree to ~1 deg)
+        speed = math.hypot(vx, vy)
+        if speed > 0.1:
+            d = (vx / speed, vy / speed)
+        else:
+            dx, dy = cmd[0] - x, cmd[1] - y
+            n = math.hypot(dx, dy)
+            if n < 0.02:
+                return cmd if self.guard_xy is None else self.guard_xy
+            d = (dx / n, dy / n)
+        free = time_to_contact_m(sc[1], sc[2], sc[3], yaw, d, self.guard_radius, sc[4], sc[5])
+        need = stop_distance_m(speed, self.guard_decel, self.guard_margin)
+        if free < need:
+            self.guard_clear_since = None
+            if self.guard_xy is None:
+                self.guard_xy = (x, y)
+                self.guard_stops += 1
+                self.get_logger().warn(f'guard: stop, {free:.2f} m to contact at {speed:.2f} m/s '
+                                       f'(needs {need:.2f}) at ({x:.2f}, {y:.2f})')
+            return self.guard_xy
+        if self.guard_xy is not None:
+            now = self.now_s()
+            if self.guard_clear_since is None:
+                self.guard_clear_since = now
+            if now - self.guard_clear_since < 0.5:
+                return self.guard_xy
+            self.guard_xy = None
+            self.cmd_xy = (x, y)                                # glide on from where the drone is
+            return (x, y)
+        return cmd
+
     def on_reset(self, msg):
         self.reset_counter = int(msg.data) % 256
 
@@ -322,9 +398,16 @@ class BridgeNode(Node):
             self._send_target(n, e, yaw)
             return
         if not self.following or pz is None or not self.carrot.active:
+            self.cmd_xy = None
+            self.guard_xy = None
             return
         _, x, y, _, _, _, _ = pz
         cx, cy = self.carrot.update(x, y)
+        # the target never jumps: it moves at most target_slew_mps (I2); starts from the drone itself
+        self.cmd_xy = slew(self.cmd_xy if self.cmd_xy is not None else (x, y), (cx, cy), self.target_slew * 0.1)
+        cx, cy = self.cmd_xy
+        if self.guard_topic:
+            cx, cy = self.guard(x, y, pz[6], (cx, cy), st)
         with self.lock:
             n, e = self.offset.slam_to_fc(cx, -cy)
         yaw = self.takeoff_yaw_ned if self.takeoff_yaw_ned is not None else (st['att'][2] if st['att'] else 0.0)
@@ -343,7 +426,8 @@ class BridgeNode(Node):
         with self.lock:
             st = dict(self.st)
             pz = self.pose
-            off_m, off_deg = self.offset.magnitude()
+            # frame offset where the drone is (map FLU -> NED: n = x, e = -y); see OffsetEstimator.magnitude
+            off_m, off_deg = self.offset.magnitude((pz[1], -pz[2]) if pz else None)
         s = BridgeStatus()
         s.header.stamp = self.get_clock().now().to_msg()
         s.header.frame_id = self.map_frame
@@ -385,6 +469,7 @@ class BridgeNode(Node):
                                                        'tx_hz': {k: round(v / dt, 2) for k, v in sorted(tx.items())},
                                                        'window_sim_s': round(sim_dt, 3) if sim_dt is not None else None,
                                                        'pose_age_at_send_ms': age,
+                                                       'guard_stops': self.guard_stops,
                                                        'cpu_pct_one_core': round(cpu_pct, 2) if cpu_pct is not None else None,
                                                        'connected': self.link.connected,
                                                        'connections': self.link.connect_count})))

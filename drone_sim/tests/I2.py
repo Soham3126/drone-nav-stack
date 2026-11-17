@@ -55,6 +55,9 @@ def run(test_id, out, world):
     ended = ok and w.wait_end(LIMIT_S.get(world, 1200.0))
     mission_s = round(time.time() - t0, 1)
     summ = next((e for e in w.events if e.get('event') == 'summary'), {})
+    with open(os.path.join(out, 'events.jsonl'), 'w') as f:          # the brain's decisions, for diagnosis
+        for e in w.events:
+            f.write(json.dumps(e) + '\n')
     with w.lock:
         truth = list(w.truth)
     res.update(final=w.state or 'none', reason=summ.get('reason', ''), mission_wall_s=mission_s,

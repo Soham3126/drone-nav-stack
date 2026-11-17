@@ -224,3 +224,87 @@ def test_unreachable_middle_falls_back_to_the_frontiers_nearest_point():
     m, final = run(io)
     assert final == 'DONE' and seen['x']
     assert not [d for _, e, d in io.events if e == 'blacklist']
+
+
+def test_path_start_is_not_taken_from_the_far_side_of_a_wall():
+    """I2 run 5: the planner's path went round a wall end and came back on the wall's other side, passing
+    0.3 m from the drone through the wall; the path was cut there and the drone flew into the wall."""
+    import numpy as np
+    import math
+    from drone_mission.mission_core import nearest_index, crosses_wall
+    res, origin = 0.05, (0.0, 0.0)
+    g = np.zeros((60, 60), dtype=np.int16)
+    g[30, 0:40] = 100                                   # wall along y = 1.5 from x = 0 to 2
+    grid = (g, res, origin)
+    pose = (1.0, 1.6)                                   # drone just above the wall
+    # the planner's start lags behind the drone (x = 0.4); the path runs 0.3 m above the wall to x = 2.2 ...
+    up = [(0.4 + 0.1 * i, 1.9) for i in range(19)]
+    down = [(2.3, 1.9 - 0.1 * i) for i in range(1, 6)]  # ... round its end ...
+    back = [(2.2 - 0.1 * i, 1.35) for i in range(19)]   # ... and back underneath, 0.25 m from the drone
+    path = up + down + back
+    k_old = min(range(len(path)), key=lambda i: (path[i][0] - pose[0]) ** 2 + (path[i][1] - pose[1]) ** 2)
+    assert k_old >= len(up) + len(down)                 # the old search took the leg under the wall
+    k = nearest_index(path, pose, grid, max_along=math.dist(path[0], pose) + 1.0)
+    assert k == 6 and path[k] == (1.0, 1.9)
+    assert crosses_wall(grid, [pose] + path[k_old + 1:]) and not crosses_wall(grid, [pose] + path[k + 1:])
+
+
+def test_wall_helpers_untangle_and_cut():
+    import numpy as np
+    from drone_mission.mission_core import untangle, cut_at_wall, crosses_wall
+    g = np.zeros((60, 60), dtype=np.int16)
+    g[30, 0:40] = 100                                   # wall along y = 1.5, x 0..2
+    grid = (g, 0.05, (0.0, 0.0))
+    raw = [(1.8, 1.7), (2.1, 1.7), (2.3, 1.5), (2.1, 1.3)]
+    moved = [(1.8, 1.8), (1.9, 1.7), (1.9, 1.3), (2.1, 1.2)]   # two neighbours pushed apart across the wall
+    assert crosses_wall(grid, moved) and not crosses_wall(grid, raw)
+    out = untangle(grid, raw, moved)
+    assert not crosses_wall(grid, out) and out[0] == moved[0]   # only the bad leg's points went back
+    through = [(1.0, 1.9), (1.0, 1.7), (1.0, 1.2), (1.0, 1.0)]
+    assert cut_at_wall(grid, through) == through[:2]
+
+
+def test_goal_behind_a_wall_is_not_taken_as_reached_by_a_short_plan():
+    """I2 x10: the planner returns the nearest reachable point, on this side of a wall, for a frontier strip
+    just behind it; the drone then hovered 20 s there and the goal was dropped."""
+    import numpy as np
+    from drone_mission.mission_core import MissionCore
+    g = np.zeros((60, 60), dtype=np.int16)
+    g[30, 0:40] = 100
+    grid = (g, 0.05, (0.0, 0.0))
+
+    class IO:
+        def map_grid(self):
+            return grid
+    m = MissionCore.__new__(MissionCore)
+    m.io = IO()
+    from drone_mission.mission_core import Params
+    m.p = Params()
+    target = (1.0, 1.4)                                 # just behind the wall
+    assert m.leads_to([(1.0, 2.5), (1.0, 2.0)], target) is None
+    assert m.leads_to([(2.5, 2.5), (2.4, 1.6)], (2.4, 1.2)) is not None    # open space, in sight
+
+
+def test_path_ending_on_a_newly_seen_wall_is_cut_short():
+    import numpy as np
+    from drone_mission.mission_core import cut_before_contact
+    g = np.zeros((60, 60), dtype=np.int16)
+    g[40, :] = 100                                      # wall along y = 2.0
+    grid = (g, 0.05, (0.0, 0.0))
+    path = [(1.0, 1.0 + 0.1 * i) for i in range(10)]    # ends at y = 1.9, 0.1 m from the wall
+    cut = cut_before_contact(grid, path, 0.22)
+    assert cut is not None and cut[-1][1] < 1.8 and len(cut) >= 2
+    assert cut_before_contact(grid, path[:5], 0.22) is None
+
+
+def test_reach_toward_goes_round_the_wall_not_to_its_back():
+    """The point offered for a given-up frontier is the one nearest it through open space."""
+    import numpy as np
+    from drone_mission.mission_core import reach_toward
+    g = np.zeros((80, 80), dtype=np.int16)              # 4 m x 4 m, all known free
+    g[40, 0:60] = 100                                   # wall along y = 2.0 from x = 0 to 3 (open beyond x = 3)
+    grid = (g, 0.05, (0.0, 0.0))
+    pose = (1.0, 1.0)                                   # below the wall
+    target = (1.0, 2.2)                                 # frontier just above it
+    q = reach_toward(*grid, pose, target, 0.35)
+    assert q is not None and q[1] > 2.0                 # on the frontier's side, reached round the wall end

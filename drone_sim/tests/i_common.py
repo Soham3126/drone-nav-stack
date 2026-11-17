@@ -4,8 +4,8 @@ and measure it against ground truth.
 Frames: Cartographer's map frame is the drone's pose at the start (it locks on the ground before take-off, start
 yaw 0 in every world), so a map point + the world start = the Gazebo world point.
 Measured:
-  coverage     share of the drone-reachable floor (maps/<world>/reachable_drone.pgm) that is known free in the
-               final /map (0 <= value < 65, the planner's rule)
+  coverage     share of the drone-reachable floor (maps/<world>/reachable_drone.pgm, eroded 0.1 m as in the book)
+               that is known free in the final /map (0 <= value < 65, the planner's rule)
   contacts     the drone's 0.27 m circle (ground truth) against walls and tall boxes, while airborne; a contact
                is counted when it goes more than 2 cm in (map cells are 5 cm)
   landing      horizontal distance between the ground-truth start and the final ground-truth position
@@ -144,8 +144,12 @@ class MissionWatch(Node):
         m = self.map
         if m is None:
             return None
-        reach = load_drone_reach(self.world)                 # rows = y, world grid of maps/<world>
         mres = self.meta['map']['resolution']
+        # guidebook 4.6 (coverage): the reachable free space eroded 0.1 m - a 5 cm map cannot put a wall face
+        # on the exact cell, and SLAM moves the whole map a few cm (I2 run 3: the unshrunk floor gave 93.9 %
+        # with not one unknown cell left; every missed cell was a 1-2 cell strip along a wall face)
+        from scipy import ndimage
+        reach = ndimage.binary_erosion(load_drone_reach(self.world), iterations=int(round(0.1 / mres)))
         ox, oy = self.meta['map']['origin']
         rr, cc = np.nonzero(reach)
         wx, wy = ox + (cc + 0.5) * mres, oy + (rr + 0.5) * mres

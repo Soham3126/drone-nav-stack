@@ -218,3 +218,35 @@ def test_shortened_lookahead_keeps_the_target_a_full_lookahead_away():
     for x, y in [(0.0, 0.0), (0.5, 0.0), (0.9, 0.0), (1.0, 0.3), (1.0, 0.8)]:
         t = c.update(x, y)
     assert t == (1.0, 1.0)
+
+
+def test_slew_glides_a_jumped_target():
+    from drone_bridge.carrot import slew
+    assert slew(None, (1.0, 2.0), 0.1) == (1.0, 2.0)
+    assert slew((0.0, 0.0), (0.05, 0.0), 0.1) == (0.05, 0.0)          # small moves pass unchanged
+    p = (0.6, 0.0)                                                    # target 0.6 m ahead ...
+    for _ in range(5):
+        p = slew(p, (-0.6, 0.0), 0.1)                                 # ... new path behind: 0.1 m per tick
+    assert abs(p[0] - 0.1) < 1e-9 and p[1] == 0.0
+
+
+def test_bridge_loop_with_bend_limit_and_slew_rounds_a_wall_end_and_arrives():
+    """The bridge's tick (10 Hz): carrot (L 0.6, bend limit 0.05) -> slew 0.1 m per tick -> target. ArduPilot
+    holds the drone within a few cm of the target (I2 flight log): here the drone moves up to 0.8 m/s toward it."""
+    import math
+    from drone_bridge.carrot import slew
+    arc = [(2.0 + 0.4 * math.cos(a), 0.4 * math.sin(a)) for a in [math.pi * (1 - i / 20) for i in range(21)]]
+    path = [(1.6, -2.0 + 0.1 * i) for i in range(20)] + arc + [(2.4, -0.1 * i) for i in range(1, 21)]
+    c = CarrotFollower(0.6, max_cut=0.05)
+    c.set_path(path)
+    x, y, cmd, track = 1.6, -2.0, None, []
+    for _ in range(600):
+        cx, cy = c.update(x, y)
+        cmd = slew(cmd if cmd is not None else (x, y), (cx, cy), 0.1)
+        d = math.hypot(cmd[0] - x, cmd[1] - y)
+        step = min(d, 0.08)
+        if d > 1e-9:
+            x, y = x + (cmd[0] - x) / d * step, y + (cmd[1] - y) / d * step
+        track.append((x, y))
+    assert min(math.hypot(px - 2.0, py) for px, py in track) > 0.31
+    assert math.hypot(x - 2.4, y + 2.0) < 0.05

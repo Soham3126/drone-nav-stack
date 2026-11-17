@@ -86,8 +86,14 @@ class OffsetEstimator:
             return n, e
         return rotate2d(-self.dpsi, n - self.dn, e - self.de)
 
-    def magnitude(self):
-        """(metres, degrees) for /bridge/status."""
+    def magnitude(self, at=None):
+        """(metres, degrees) for /bridge/status. metres: how far apart the two frames put the point `at`
+        (SLAM NED (n, e), normally the drone) - what a target sent to the FC is off by. Without `at`: at the
+        SLAM origin, i.e. the translation alone. The two differ by rotation x distance from the origin: in I2 a
+        0.5-0.8 deg yaw estimate 8-9 m out turned 3-7 cm of real disagreement into a 0.10 m "offset"."""
         if self.dpsi is None:
             return float('nan'), float('nan')
-        return math.hypot(self.dn, self.de), math.degrees(abs(self.dpsi))
+        if at is None:
+            return math.hypot(self.dn, self.de), math.degrees(abs(self.dpsi))
+        n, e = self.slam_to_fc(*at)
+        return math.hypot(n - at[0], e - at[1]), math.degrees(abs(self.dpsi))

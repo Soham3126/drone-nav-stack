@@ -13,3 +13,6 @@ drone_sim/maps/wr_s100/
 drone_sim/worlds/wr_s[2-9][1-9].sdf
 drone_sim/worlds/wr_s[3-9]0.sdf
 drone_sim/worlds/wr_s100.sdf
+# generated at every sim start by drone_sim/tools/make_compact_iris.py (from ~/ardupilot_gazebo)
+drone_sim/models/iris_compact_standoffs/
+drone_sim/models/iris_compact_ardupilot/

@@ -90,3 +90,16 @@ def test_buffer_out_of_order_and_empty():
     b.add(1.0, 1, 0, 0)
     b.add(0.5, 0.5, 0, 0)
     assert b.t == [0.5, 1.0] and len(b) == 2
+
+
+def test_magnitude_at_the_drone_ignores_the_rotation_lever():
+    # frames agree at the drone 8 m out, but a 0.7 deg yaw estimate makes the translation at the origin ~10 cm
+    est = OffsetEstimator()
+    a = math.radians(0.7)
+    n, e = 8.0, 0.0
+    rn, re = n * math.cos(a) - e * math.sin(a), n * math.sin(a) + e * math.cos(a)
+    est.update(n, e, a, n, e, 0.0)            # FC = SLAM at the drone, yaw differs by 0.7 deg
+    m0, d = est.magnitude()
+    m1, _ = est.magnitude((n, e))
+    assert abs(m0 - math.hypot(n - rn, e - re)) < 1e-9 and m0 > 0.09
+    assert m1 < 1e-9 and abs(d - 0.7) < 1e-9

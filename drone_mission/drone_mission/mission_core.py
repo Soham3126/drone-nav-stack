@@ -57,6 +57,13 @@ class Params:
     approach_max_tries: int = 12          # planner calls per approach at most
     same_goal_radius_m: float = 1.0       # a frontier this close to the current goal is the same frontier, moved
     goal_reached_m: float = 0.3
+    path_end_reached_m: float = 0.15      # the bridge's arrive radius
+    sweep_max: int = 8                    # end-of-exploration revisits of given-up frontiers, at most
+    sweep_radius_m: float = 0.6           # ... one per frontier (within this distance)
+    sweep_min_move_m: float = 0.4         # ... and only if it moves the drone this far
+    sweep_clear_m: float = 0.35           # ... to a point at least this far from walls (corridor middles: ~0.42)
+    leads_min_move_m: float = 0.5         # a plan that cannot see its goal still counts if it moves the drone this far
+    contact_d_m: float = 0.22             # a path point this close to a wall would put the drone (0.27 m) on it
     home_x: float = 0.0
     home_y: float = 0.0
     home_tol_m: float = 0.3
@@ -101,6 +108,7 @@ class MissionCore:
         self.abort_requested = False
         self.goal = None
         self.blacklist = []           # dicts: xy, tries, until, why
+        self.swept = []               # frontier middles revisited once before the end (sweep)
         self.trail = []               # recent drone positions (for backing off)
         self.escapes = 0
         self.stuck_n = 0              # escapes since the last successful plan
@@ -120,6 +128,35 @@ class MissionCore:
         if s is None or self.io.status_age() > self.p.status_timeout_s:
             raise Stop(f'no /bridge/status for {self.io.status_age():.1f} s')
         return s
+
+    def sweep(self, fr, now, pose):
+        """Before the mission may end with frontiers it gave up on: fly once, for each, to the point closest to
+        it that the drone can reach with room to spare (known free cells, sweep_clear_m from walls), and let it
+        be tried again from there. A frontier given up from one spot - three refusals in ~40 s while the drone
+        hovered, so the map never changed - can be plain to the planner from another. (I2 x10c: two missions
+        ended at 47 % and 77 % with the way into the unknown part only ~1 m from where the drone gave up.)"""
+        grid = self.io.map_grid() if hasattr(self.io, 'map_grid') else None
+        if grid is None or pose is None or len(self.swept) >= self.p.sweep_max:
+            return False
+        left = [f for f in fr if self.excluded_for_good(f['middle'])
+                and not any(dist(f['middle'], q) <= self.p.sweep_radius_m for q in self.swept)]
+        for f in sorted(left, key=lambda f: dist(f.get('nearest') or f['middle'], pose)):
+            self.swept.append(tuple(f['middle']))
+            q = reach_toward(*grid, pose, f['middle'], self.p.sweep_clear_m)
+            if q is None or dist(q, pose) < self.p.sweep_min_move_m:
+                continue
+            path = self.io.plan(q)
+            self.stats.plans += 1
+            if not path:
+                continue
+            self.blacklist = [b for b in self.blacklist if dist(b['xy'], f['middle']) > self.p.sweep_radius_m]
+            self.io.log('sweep', frontier=[round(v, 2) for v in f['middle']], to=[round(v, 2) for v in q],
+                        n=len(self.swept))
+            d = dist(pose, f['middle'])
+            self.goal = Goal(xy=tuple(f['middle']), cost=f['cost'], since=now, best_d=d, best_t=now)
+            self.goal.path = self.send(path)
+            return True
+        return False
 
     def blacklisted(self, xy):
         """Excluded: blacklisted less than blacklist_ttl_s ago, or failed blacklist_max_tries times.
@@ -259,10 +296,16 @@ class MissionCore:
             silent_warned = False
             if self.goal is not None and self.goal.path:
                 self.goal.path = self.recheck(self.goal.path, pose)
+            # at the end of its path counts too: the bridge's "arrived" latch restarts with every re-send, and
+            # in I2 x10 run 10 the drone hovered 20 s on a path's end without it (then the goal was dropped)
             reached = self.goal is not None and (
                 (s.get('path_arrived') and self.goal.path and dist(pose, self.goal.path[-1]) <= self.p.arrived_check_m)
+                or (self.goal.path and dist(pose, self.goal.path[-1]) <= self.p.path_end_reached_m)
                 or dist(pose, self.goal.xy) <= self.p.goal_reached_m)
-            if self.goal is None or reached or now - last_choice >= self.p.rechoose_period_s:
+            # not straight after a path fix (I2 run 3: the routine re-choice re-sent within 10 ms, restarting
+            # the follower on a fresh planner path built on the lagging cost map)
+            just_fixed = now - getattr(self, 'fixed_at', -1e9) < self.p.loop_period_s
+            if self.goal is None or reached or (now - last_choice >= self.p.rechoose_period_s and not just_fixed):
                 cands = [f for f in fr if not self.blacklisted(f['middle'])]
                 waiting = [f for f in fr if not self.excluded_for_good(f['middle'])]
                 if not cands and waiting:
@@ -270,6 +313,9 @@ class MissionCore:
                     empty = 0
                     if reached:
                         self.goal = None
+                elif not cands and self.sweep(fr, now, pose):
+                    empty = 0
+                    last_choice = now
                 elif not cands:
                     if seq != last_seq_empty:
                         empty += 1
@@ -319,13 +365,13 @@ class MissionCore:
                      or not any(dist(f['middle'], xy) <= self.p.same_goal_radius_m for xy in recent)] or order
         failed = []
         for f in order:
-            path = self.io.plan(f['middle'])
+            path = self.leads_to(self.io.plan(f['middle']), f['middle'])
             self.stats.plans += 1
             near = f.get('nearest')
             if not path and near is not None and dist(near, f['middle']) > self.p.goal_reached_m:
                 # a long frontier's middle can lie where the drone cannot go (e.g. on a strip the LiDAR saw
                 # down a corridor at an angle) while the part nearest the drone is easy to reach: go there
-                path = self.io.plan(near)
+                path = self.leads_to(self.io.plan(near), near)
                 self.stats.plans += 1
             if not path:
                 path = self.approach(f['middle'], pose)
@@ -367,6 +413,28 @@ class MissionCore:
                 self.goal = None
         return False
 
+    def leads_to(self, path, target):
+        """`path` if it gets to `target` or within sight of it, else None. The planner (tolerance 0.5 m) returns
+        a path to the nearest point it can reach; for a frontier seen behind a wall - a strip of free cells the
+        LiDAR marked just beyond a wall face, or outside the outer wall - that point is on this side of the
+        wall, 0.6-0.9 m away, and flying there never clears the frontier (I2 x10: 21 of 24 goals dropped after
+        20 s each, and 23 % of W3 left unexplored in run 10, were such goals). Then the frontier's nearest
+        point and the approach through known free space are tried instead."""
+        if not path:
+            return path
+        grid = self.io.map_grid() if hasattr(self.io, 'map_grid') else None
+        if grid is None or dist(path[-1], target) <= self.p.goal_reached_m:
+            return path
+        if segment_clearance(*grid, path[-1], target) > 0.0 and not crosses_wall(grid, path):
+            return path
+        # cannot see the target from the end - but a path that takes the drone somewhere new still explores on
+        # the way (I2 x10b run 4: rejecting those left only one 15 m frontier that nothing "led to", and the
+        # mission ended at 33 %). Only a path that leaves the drone where it is goes nowhere.
+        pose = self.io.pose() if hasattr(self.io, 'pose') else None
+        if pose is not None and dist(path[-1], pose) >= self.p.leads_min_move_m:
+            return path
+        return None
+
     def approach(self, goal, pose):
         """The frontier itself cannot be planned to - usually it was seen through a doorway or gap at an angle,
         so the known free space only joins up through a strip too narrow for the drone. Plan instead to points
@@ -378,6 +446,8 @@ class MissionCore:
         grid = self.io.map_grid() if hasattr(self.io, 'map_grid') else None
         if grid is not None:
             route = free_route(*grid, pose, goal)
+            if not route:
+                return None          # no way through known free space: the frontier is behind a wall
         if not route:
             d = dist(goal, pose)
             n = int(d / 0.05)
@@ -394,7 +464,7 @@ class MissionCore:
             acc = 0.0
             if dist(q, pose) < self.p.approach_min_gain_m:
                 return None
-            path = self.io.plan(q)
+            path = self.leads_to(self.io.plan(q), q)
             self.stats.plans += 1
             tries += 1
             if path and dist(path[-1], pose) >= self.p.approach_min_gain_m:
@@ -408,16 +478,42 @@ class MissionCore:
     def send(self, path):
         """Follow `path` after moving its points away from walls (see keep_clear), using the newest map."""
         pose = self.io.pose()
+        grid = self.io.map_grid() if hasattr(self.io, 'map_grid') else None
         if pose is not None and len(path) >= 2:
-            # start the path at the drone: drop what lies behind it (the planner's start can lag the drone)
-            k = nearest_index(path, pose)
+            # start the path at the drone: drop what lies behind it (the planner's start can lag the drone, by
+            # less than 1 m: no point further along than that, and none behind a wall, see nearest_index)
+            k = nearest_index(path, pose, grid, max_along=dist(path[0], pose) + 1.0)
             if dist(path[k], pose) <= 1.0:
                 path = [tuple(pose)] + list(path[k + 1:]) if k + 1 < len(path) else [tuple(pose), path[-1]]
-        grid = self.io.map_grid() if hasattr(self.io, 'map_grid') else None
+        track = None
         if grid is not None:
-            path = make_clear(*grid, path, self.p.path_clear_m, self.p.carrot_lookahead_m, self.p.track_min_m)
+            cleared = make_clear(*grid, path, self.p.path_clear_m, self.p.carrot_lookahead_m, self.p.track_min_m)
+            path = untangle(grid, path, cleared)  # moving points must never make a leg pass through a wall
+            if crosses_wall(grid, path):
+                # the planner's own path runs through a wall (its cost map lags the map; or it was asked for a
+                # point behind a wall). Fly only up to the wall: I2 x10 run 6 flew at the outer wall twice.
+                cut = cut_at_wall(grid, path)
+                self.io.log('warning', what='path crosses a wall cell', pts=len(path),
+                            kept=len(cut) if cut else 0)
+                path = cut if cut else [tuple(pose), tuple(pose)] if pose is not None else path[:1] * 2
+            cut = cut_before_contact(grid, path, self.p.contact_d_m)
+            if cut is not None:
+                self.io.log('path_cut', kept_m=round(path_len(cut), 2), at_send=True)
+                path = cut
+            track = round(carrot_track_clearance(*grid, path, self.p.carrot_lookahead_m), 3)
+        self.log_path('sent', path, track)
         self.io.follow(path)
         return path
+
+    def log_path(self, why, path, track):
+        """The path sent, thinned to ~0.2 m, in the events (I2 run 3: a wall touch could not be traced
+        without the path the drone was given)."""
+        pts, last = [], None
+        for q in path:
+            if last is None or dist(q, last) >= 0.2 or q is path[-1]:
+                pts.append([round(q[0], 2), round(q[1], 2)])
+                last = q
+        self.io.log('sent', why=why, track=track, pts=pts)
 
     def recheck(self, path, pose):
         """The planner works on a cost map that is 1-2 s behind the map (in flight: walls seen moments ago are
@@ -427,17 +523,36 @@ class MissionCore:
         if grid is None or len(path) < 2:
             return path
         g, res, origin = grid
-        k = nearest_index(path, pose)
+        k = nearest_index(path, pose, grid)
         ahead = path[k:]
         before = carrot_track_clearance(g, res, origin, ahead, self.p.carrot_lookahead_m)
         if before >= self.p.track_min_m:
             return path
         fixed = make_clear(g, res, origin, ahead, self.p.path_clear_m, self.p.carrot_lookahead_m,
                            self.p.track_min_m)
+        fixed = untangle(grid, ahead, fixed)    # moved points must never make a leg pass through a wall
+        cut = False
+        if crosses_wall(grid, fixed):
+            # still through a wall (a point that sat on a just-seen wall can be pushed out on its far side,
+            # I2 x10b run 10): fly only up to it
+            fixed = cut_at_wall(grid, fixed) or [tuple(pose), tuple(pose)]
+            cut = True
+        # stop short of a wall that could not be moved away from - typically the path's end is a frontier
+        # where a wall has just been seen (I2 x10b runs 1, 8, 10: the drone flew on into it)
+        short = cut_before_contact(grid, fixed, self.p.contact_d_m)
+        if short is not None:
+            fixed, cut = short, True
+        after = carrot_track_clearance(g, res, origin, fixed, self.p.carrot_lookahead_m)
+        if not cut and after < before + 0.02:
+            # nothing gained: do not re-send the same path - every re-send restarts the bridge's follower
+            # (I2: 52 re-sends, 20 of them changing nothing)
+            return path
         self.path_fixes += 1
-        self.io.log('path_fix', n=self.path_fixes, track_before=round(before, 3),
-                    track_after=round(carrot_track_clearance(g, res, origin, fixed, self.p.carrot_lookahead_m), 3))
+        self.io.log('path_cut' if cut else 'path_fix', n=self.path_fixes, track_before=round(before, 3),
+                    track_after=round(after, 3), kept_m=round(path_len(fixed), 2))
+        self.log_path('path_cut' if cut else 'path_fix', fixed, round(after, 3))
         self.io.follow(fixed)
+        self.fixed_at = self.io.now()
         return fixed
 
     def escape(self, pose):
@@ -488,7 +603,9 @@ class MissionCore:
         attempt, failures, t_end = 0, 0, self.io.now() + self.p.return_timeout_s
         while attempt < self.p.return_attempts and self.io.now() < t_end:
             pose = self.io.pose()
-            if dist(pose, home) <= self.p.home_tol_m:
+            # aim for half the tolerance: SLAM error and the landing itself add up to ~0.1 m (I2 x10c run 6: the
+            # mission ended 0.23 m from home, nothing was flown, and the drone landed 0.34 m from the start)
+            if dist(pose, home) <= self.p.home_tol_m * 0.5:
                 break
             path = self.io.plan(home)
             if not path:
@@ -686,8 +803,138 @@ def make_clear(grid, res, origin, path, want, lookahead, track_min):
     return keep_clear(grid, res, origin, path, want)
 
 
-def nearest_index(path, pose):
-    return min(range(len(path)), key=lambda i: (path[i][0] - pose[0]) ** 2 + (path[i][1] - pose[1]) ** 2)
+def nearest_index(path, pose, grid=None, max_along=None):
+    """Index of the path point nearest the drone. A path that goes round a wall and comes back on its other
+    side passes near the drone twice; the later pass must not be taken (I2 run 5: the path was cut from the
+    drone straight through a wall end to its return leg, and the drone flew 11 cm into the wall). So only
+    points within `max_along` metres along the path from its start, and - with `grid` (grid, res, origin) - only
+    points the drone can see (the straight line to them crosses no wall cell) are candidates."""
+    best, best_d2, s = None, None, 0.0
+    for i, q in enumerate(path):
+        if i:
+            s += dist(path[i - 1], q)
+        if max_along is not None and s > max_along:
+            break
+        d2 = (q[0] - pose[0]) ** 2 + (q[1] - pose[1]) ** 2
+        if best_d2 is not None and d2 >= best_d2:
+            continue
+        if grid is not None and segment_clearance(*grid, pose, q) <= 0.0:
+            continue
+        best, best_d2 = i, d2
+    if best is None:
+        return 0
+    return best
+
+
+def untangle(grid, raw, moved):
+    """keep_clear moves points one by one; next to a wall end two neighbours can be pushed apart so the leg
+    between them cuts the wall. Put back (to the planner's place) only the points of legs that cross a wall
+    and did not before (I2 x10 run 2: reverting the whole path sent the planner's path 7 cm from a wall)."""
+    out = list(moved)
+    for _ in range(6):
+        bad = [i for i in range(len(out) - 1)
+               if segment_clearance(*grid, out[i], out[i + 1]) <= 0.0
+               and segment_clearance(*grid, raw[i], raw[i + 1]) > 0.0]
+        if not bad:
+            return out
+        for i in bad:
+            out[i], out[i + 1] = raw[i], raw[i + 1]
+    return list(raw)
+
+
+def reach_toward(grid, res, origin, pose, target, clear_m):
+    """The point the drone can get to (known free cells at least clear_m from walls, connected to the drone
+    through such cells) that is closest to `target` *by way of known free space* - not in a straight line,
+    which picks the far side of the wall the frontier was given up behind (I2 x10c run 3: the unknown room was
+    entered round the end of that wall, 2 m away). None if no such point connects to the target."""
+    import numpy as np
+    from collections import deque
+    d, _ = wall_field(grid, res)
+    free = (grid >= 0) & (grid < 65)
+    ok = free & (d >= clear_m)
+    h, w = grid.shape
+    nb = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
+    # 1. steps from the target through known free cells (any clearance)
+    geo = np.full(grid.shape, -1, dtype=np.int32)
+    tr, tc = _cell(target, res, origin, grid.shape)
+    q = deque()
+    for dr in range(-2, 3):                     # the frontier cell itself may be unknown or a wall pixel
+        for dc in range(-2, 3):
+            r, c = tr + dr, tc + dc
+            if 0 <= r < h and 0 <= c < w and free[r, c]:
+                geo[r, c] = 0
+                q.append((r, c))
+    while q:
+        r, c = q.popleft()
+        for dr, dc in nb:
+            n = (r + dr, c + dc)
+            if 0 <= n[0] < h and 0 <= n[1] < w and free[n] and geo[n] < 0:
+                geo[n] = geo[r, c] + 1
+                q.append(n)
+    # 2. cells the drone can reach with room to spare; take the one nearest the target along 1.
+    r0, c0 = _cell(pose, res, origin, grid.shape)
+    seen = np.zeros(grid.shape, dtype=bool)
+    for dr in range(-6, 7):
+        for dc in range(-6, 7):
+            r, c = r0 + dr, c0 + dc
+            if 0 <= r < h and 0 <= c < w and ok[r, c] and not seen[r, c]:
+                seen[r, c] = True
+                q.append((r, c))
+    best, best_g = None, None
+    while q:
+        r, c = q.popleft()
+        if geo[r, c] >= 0 and (best_g is None or geo[r, c] < best_g):
+            best, best_g = (r, c), geo[r, c]
+        for dr, dc in nb:
+            n = (r + dr, c + dc)
+            if 0 <= n[0] < h and 0 <= n[1] < w and ok[n] and not seen[n]:
+                seen[n] = True
+                q.append(n)
+    if best is None:
+        return None
+    return (origin[0] + (best[1] + 0.5) * res, origin[1] + (best[0] + 0.5) * res)
+
+
+def cut_before_contact(grid, path, contact_d, skip_m=0.1):
+    """`path` up to the last point before it comes within contact_d of a wall (points in the first skip_m
+    metres excepted: the drone itself may be that close), or None if it never does. If the wall is right ahead,
+    the path shrinks to the drone's own position (stop). (I2 x10b runs 8 and 10: the wall showed up when the
+    drone was already close; stopping only further back would have been too late.)"""
+    g, res, origin = grid
+    d, _ = wall_field(g, res)
+    # a drone already that close (escaping, hugging a wall) is only stopped from getting closer still
+    limit = min(contact_d, float(d[_cell(path[0], res, origin, d.shape)]) - 0.02)
+    s = 0.0
+    for i, q in enumerate(path):
+        if i:
+            s += dist(path[i - 1], q)
+        if s < skip_m:
+            continue
+        if float(d[_cell(q, res, origin, d.shape)]) < limit:
+            return list(path[:i]) if i >= 2 else [path[0], path[0]]
+    return None
+
+
+def cut_at_wall(grid, path):
+    """The path up to (not into) its first leg through a wall cell, or None if it crosses none."""
+    for i in range(len(path) - 1):
+        if segment_clearance(*grid, path[i], path[i + 1]) <= 0.0:
+            return list(path[:i + 1]) if i >= 1 else None
+    return None
+
+
+def crosses_wall(grid, path):
+    """True if a straight leg between consecutive path points passes through a wall cell."""
+    return any(segment_clearance(*grid, a, b) <= 0.0 for a, b in zip(path, path[1:]))
+
+
+def segment_clearance(grid, res, origin, a, b):
+    """Smallest wall distance (m) on the straight line a -> b (0.0 if it touches a wall cell)."""
+    import numpy as np
+    d, _ = wall_field(grid, res)
+    n = max(2, int(math.hypot(b[0] - a[0], b[1] - a[1]) / (res / 2)) + 1)
+    return min(float(d[_cell((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t), res, origin, d.shape)])
+               for t in np.linspace(0.0, 1.0, n))
 
 
 def clear_route(grid, res, origin, start, clear_m, occupied=65):

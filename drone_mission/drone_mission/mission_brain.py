@@ -177,6 +177,8 @@ class Iface:
         self.n.pub_events.publish(String(data=json.dumps(rec, default=str)))
         if event == 'state':
             self.n.pub_state.publish(String(data=data['state']))
+        if event == 'sent':
+            return                       # path points: events topic only (I2 diagnosis), not the console
         # rclpy refuses one call site logging at two severities: keep the two calls on separate lines
         text = f'{event} {json.dumps(data, default=str)}'
         if event in ('warning', 'blacklist', 'escape', 'stop_land'):
