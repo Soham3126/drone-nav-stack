@@ -61,12 +61,15 @@ TRAJECTORY_BUILDER_2D.motion_filter.max_time_seconds = 5.
 TRAJECTORY_BUILDER_2D.submaps.num_range_data = 120    -- A1.9 sweep: 90 -> 120
 TRAJECTORY_BUILDER_2D.submaps.grid_options_2d.resolution = 0.05
 
--- Loop closure ON with a SHORT search radius (A1.9 sweep, deviation from the book's "off"):
--- only match against submaps within 1 m of where the drone believes it is, so look-alike junctions
--- elsewhere in the maze cannot be matched (unrestricted loop closure gave 1.8 m errors in W4).
-POSE_GRAPH.optimize_every_n_nodes = 45      -- A1.9 noisy-IMU sweep: 90 -> 45 (W4 ATE worst 10.1 -> 9.7 cm, navigability 5/6 -> 6/6)
+-- Loop closure ON (A1.9 sweep, deviation from the book's "off"). A1.9 limited the search to 1 m because
+-- unrestricted loop closure gave 1.8 m errors in W4; min_score 0.75 now guards against look-alike junctions
+-- and the replays below found no false match at 15 m.
+POSE_GRAPH.optimize_every_n_nodes = 20      -- A1.9: 90 -> 45; I3 (18 Nov): 45 -> 20, see max_constraint_distance
 POSE_GRAPH.global_sampling_ratio = 0.
-POSE_GRAPH.constraint_builder.max_constraint_distance = 1.
+-- I3 (18 Nov): 1 -> 15 m with optimize_every_n_nodes 20 (the A1.9 candidate "worth re-testing in integration").
+-- Full W4 missions drift 3-4 min between corrections; replays: failed I3 run 17.1 -> 13.2 cm, three passed W4
+-- runs 13.5/12.6/11.3 -> 13.3/10.6/9.7 cm, four W3 runs 12.5/7.4/6.7/6.3 -> 12.1/6.3/5.4/6.0 cm (no false matches).
+POSE_GRAPH.constraint_builder.max_constraint_distance = 15.
 POSE_GRAPH.constraint_builder.fast_correlative_scan_matcher.linear_search_window = 0.5
 POSE_GRAPH.constraint_builder.min_score = 0.75
 

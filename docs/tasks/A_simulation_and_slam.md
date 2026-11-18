@@ -40,6 +40,10 @@ The test script is `drone_sim/tests/<ID with _ for .>.py` (A1.10 -> `A1_10.py`);
 * Tried but **not adopted**: `max_constraint_distance` 15 m with `optimize_every_n_nodes` 20 reduced the W4 heading
   creep in replays (worst error 15.2 -> 10.6 cm) but was never committed. All of workstream B ran on `carto-v1`.
   Worth re-testing in the integration tests.
+  **Adopted in I3 (18 Nov 2026)** after a W4 mission failed on ATE 17.1 cm (3-4 min of drift between corrections).
+  Replays (`scripts/carto_replay.sh`): that run 13.2 cm; three passed W4 runs and four W3 runs all equal or better
+  (W4 13.5/12.6/11.3 -> 13.3/10.6/9.7, W3 12.5/7.4/6.7/6.3 -> 12.1/6.3/5.4/6.0 cm); no false loop closures. Not yet
+  measured: the extra CPU on the Pi 5 (more frequent optimisation over a wider search).
 * Confirmation on fresh flights: 7 of 9 passed. The two misses are the known limit: in long featureless corridors
   (W4/W5) the heading creeps slowly and is corrected only now and then. Diagnosed with `tools/where_error.py`.
 * Keep the heading constant in missions: turning the nose along the path made the heading drift (A1.5 finding).

@@ -198,3 +198,12 @@ is 0.35 m from a wall in the map (0.475 m in truth; the map draws walls thicker)
 last point is put back on home (if the straight leg to it is clear), in sends and in re-checks. Landings were
 0.25-0.30 m in four runs (W4's SLAM error near home is 10-14 cm); with the path now ending on home, the drone
 lands where SLAM puts home rather than up to 0.34 m short of it.
+
+## I3 after fix 10 (batch ending 20261118_063046, commit 3b85b5a): 9/10 -> Cartographer change
+
+Landings now 0.01-0.11 m (fix 10). One failure: run 9 (20261118_062229) ATE 17.1 cm > 15 cm; everything else fine.
+Cartographer drifted to ~25 cm over 3-4 minutes in the far rooms and corrected only near the start (loop closure
+search limited to 1 m since A1.9). Settled offline with `scripts/carto_replay.sh` on the recorded flights (no new
+missions): 7 settings on the failed run; `max_constraint_distance` 15 m + `optimize_every_n_nodes` 20 was best
+(17.1 -> 13.2 cm) and did not harm three passed W4 and four passed W3 flights (all equal or lower). Adopted in
+`drone_slam/config/drone_2d.lua`; see A notes. Pi 5 CPU for it still to be measured.
