@@ -56,3 +56,38 @@ def test_braking_on_a_late_wall_stops_before_contact():
             v = max(0.0, v - 1.0 * dt)
         x += v * dt
     assert frozen and 1.2 - x > 0.27
+
+
+def test_clip_keeps_the_drone_off_a_wall_ahead():
+    from drone_bridge.guard import clip_target
+    s = scan_of([((1.0, -2), (1.0, 2))], 0, 0, 0)            # wall 1 m ahead
+    tx, ty = clip_target(s, AMIN, AINC, 0.0, (0, 0), (0.9, 0), 0.31)
+    assert abs(tx - 0.69) < 0.02 and abs(ty) < 0.02
+
+
+def test_clip_slides_along_a_wall():
+    from drone_bridge.guard import clip_target
+    s = scan_of([((-5, 0.35), (5, 0.35))], 0, 0, 0)          # wall 0.35 m to the left
+    tx, ty = clip_target(s, AMIN, AINC, 0.0, (0, 0), (0.5, 0.2), 0.31)
+    assert abs(tx - 0.5) < 0.03 and ty < 0.06               # still moves along it, but not much closer
+
+
+def test_clip_leaves_corridor_flight_alone():
+    from drone_bridge.guard import clip_target
+    s = scan_of([((-5, 0.475), (5, 0.475)), ((-5, -0.475), (5, -0.475))], 0, 0, 0)
+    tx, ty = clip_target(s, AMIN, AINC, 0.0, (0, 0), (0.6, 0.0), 0.31)
+    assert abs(tx - 0.6) < 0.01 and abs(ty) < 0.01
+
+
+def test_clip_lets_the_drone_through_a_062_m_gap():
+    from drone_bridge.guard import clip_target
+    s = scan_of([((0.5, 0.31), (0.6, 0.31)), ((0.5, -0.31), (0.6, -0.31))], 0, 0, 0)
+    tx, ty = clip_target(s, AMIN, AINC, 0.0, (0, 0), (0.6, 0.0), 0.31)
+    assert tx > 0.5 and abs(ty) < 0.02
+
+
+def test_clip_pushes_out_of_a_corner():
+    from drone_bridge.guard import clip_target, math as _m
+    s = scan_of([((1.0, -2), (1.0, 1.0)), ((-2, 1.0), (1.0, 1.0))], 0, 0, 0)
+    tx, ty = clip_target(s, AMIN, AINC, 0.0, (0, 0), (0.9, 0.9), 0.31)
+    assert 1.0 - tx >= 0.30 and 1.0 - ty >= 0.30

@@ -36,7 +36,7 @@ from std_msgs.msg import String, UInt8  # noqa: E402
 from tf2_msgs.msg import TFMessage  # noqa: E402
 
 from .carrot import CarrotFollower, slew
-from .guard import time_to_contact_m, stop_distance_m  # noqa: E402
+from .guard import time_to_contact_m, stop_distance_m, clip_target  # noqa: E402
 from .commands import COPTER_GUIDED, MAV_MODE_FLAG_SAFETY_ARMED, CommandRunner  # noqa: E402
 from .frames import flu_to_ned_rpy, quat_to_rpy  # noqa: E402
 from .mavlink_link import MavLink  # noqa: E402
@@ -109,6 +109,9 @@ class BridgeNode(Node):
         self.guard_radius = float(P('guard_radius_m', 0.30).value)     # drone 0.27 m + a little
         self.guard_decel = float(P('guard_decel_mps2', 1.0).value)
         self.guard_margin = float(P('guard_margin_m', 0.08).value)
+        # never head for a point closer than this to anything the LiDAR sees (drone 0.27 m + ArduPilot's ~5 cm
+        # overshoot when a target stops); 0 = off. Gaps narrower than twice this cannot be flown through.
+        self.guard_keep = float(P('guard_keep_m', 0.31).value)
         self.scan = None                        # (receive time, ranges, angle_min, angle_inc, range_min, range_max)
         self.guard_xy = None                    # where the target is frozen while the guard holds
         self.guard_clear_since = None
@@ -309,6 +312,8 @@ class BridgeNode(Node):
             self.guard_xy = None
             self.cmd_xy = (x, y)                                # glide on from where the drone is
             return (x, y)
+        if self.guard_keep > 0:
+            return clip_target(sc[1], sc[2], sc[3], yaw, (x, y), cmd, self.guard_keep, sc[4], sc[5])
         return cmd
 
     def on_reset(self, msg):

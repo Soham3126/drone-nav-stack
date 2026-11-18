@@ -37,3 +37,35 @@ def time_to_contact_m(ranges, angle_min, angle_inc, yaw, direction, radius, rang
 def stop_distance_m(speed, decel, margin):
     """How far the drone travels while braking from `speed` at `decel`, plus `margin`."""
     return speed * speed / (2.0 * decel) + margin
+
+
+def clip_target(ranges, angle_min, angle_inc, yaw, pose, target, keep, range_min=0.12, range_max=12.0):
+    """Move `target` (map frame) so that it is at least `keep` from every scan point near it.
+
+    The nearest point closer than `keep` pushes the target straight away from it (a few passes, so a corner
+    pushes it out of both walls); a target clear of everything is returned unchanged. The drone follows the target, so it
+    slides along walls rather than stopping. The scan sees the walls where they are; the map and the SLAM pose
+    can be 10-15 cm out locally (I3 x10 f2d6406: targets 0.30-0.40 m from walls in the map put the drone 0.25 m
+    from them in truth)."""
+    px, py = pose
+    tx, ty = target
+    reach = math.hypot(tx - px, ty - py) + keep
+    pts = []
+    a = angle_min + yaw
+    for r in ranges:
+        if range_min <= r <= min(range_max, reach):
+            pts.append((px + r * math.cos(a), py + r * math.sin(a)))
+        a += angle_inc
+    for _ in range(6):                          # nearest point first: on a straight wall that is the foot of
+        if not pts:                             # the perpendicular, so the push is straight off the wall
+            break
+        qx, qy = min(pts, key=lambda q: (tx - q[0]) ** 2 + (ty - q[1]) ** 2)
+        dx, dy = tx - qx, ty - qy
+        d = math.hypot(dx, dy)
+        if d >= keep - 1e-6:
+            break
+        if d < 1e-6:                            # on the point: push back toward the drone
+            dx, dy = px - qx, py - qy
+            d = max(math.hypot(dx, dy), 1e-6)
+        tx, ty = qx + dx / d * keep, qy + dy / d * keep
+    return (tx, ty)

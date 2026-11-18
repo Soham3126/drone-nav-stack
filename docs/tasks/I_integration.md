@@ -207,3 +207,15 @@ search limited to 1 m since A1.9). Settled offline with `scripts/carto_replay.sh
 missions): 7 settings on the failed run; `max_constraint_distance` 15 m + `optimize_every_n_nodes` 20 was best
 (17.1 -> 13.2 cm) and did not harm three passed W4 and four passed W3 flights (all equal or lower). Adopted in
 `drone_slam/config/drone_2d.lua`; see A notes. Pi 5 CPU for it still to be measured.
+
+## I3 on f2d6406 (batch ending 20261119_013734): 8/10 -> guard keep-off distance
+
+ATE no longer fails (max 14.2 cm), landings 0.01-0.07 m. Runs 1 and 3: one contact each (2.1 and 2.9 cm), both the
+same way. The target the bridge sent was 0.40 m and 0.30 m from the walls in the map, but the drone ended 0.257
+and 0.245 m from them in truth: W4's map and pose disagree locally by 5-15 cm, and ArduPilot overshoots a stopping
+target by ~5 cm. The LiDAR guard fired 5-6 times per mission but only looked straight ahead along the motion.
+Fix: the guard now also keeps the *target* at least 0.31 m (`guard_keep_m`) from every point the LiDAR sees,
+pushing it straight off the nearest wall (the drone slides along walls instead of stopping). The scan is used
+relative to the drone, so SLAM's offsets do not matter. Replayed on four recorded flights against the true walls:
+targets changed in 0-0.2 % of samples, never closer than 0.308 m to a true wall. Consequence: gaps narrower than
+0.62 m can no longer be flown through (I4's W7 gap widths to be checked against this).
